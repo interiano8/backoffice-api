@@ -192,7 +192,6 @@ model BoReconciliation {
   status        String
   difference    Decimal?  @db.Decimal(18, 4)
   signedBy      String?
-  signatureData String?   @db.Text
   signedAt      DateTime? @db.Timestamptz(6)
   createdAt     DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
@@ -356,7 +355,6 @@ model Permission {
 model RolePermission {
   roleId       String
   permissionId String
-  assignedAt   DateTime   @default(now()) @db.Timestamptz(6)
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
@@ -367,7 +365,6 @@ model RolePermission {
 model UserRole {
   userId     String
   roleId     String
-  assignedAt DateTime @default(now()) @db.Timestamptz(6)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
