@@ -1,0 +1,17 @@
+export const ETL = {
+  DEFAULT_LOOKBACK_DAYS: 90,
+  BATCH_SIZE_SALES: 500,
+  CHUNK_SIZE: 1000,
+  LOCK_EXPIRY_HOURS: 1,
+  LOCK_MAX_ATTEMPTS: 120,
+  LOCK_RETRY_MS: 1000,
+};
+
+export const AUTH = {
+  JWT_EXPIRES_IN: '8h',
+};
+
+export const SHIFTS = {
+  MAX_RESULTS: 2000,
+  BALANCE_THRESHOLD: 0.05,
+};

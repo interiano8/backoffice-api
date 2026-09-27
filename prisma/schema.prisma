@@ -1,0 +1,390 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BoSale {
+  id                String        @id @default(uuid())
+  source            String
+  externalId        String
+  saleIdFusion      String?
+  timestamp         DateTime      @db.Timestamptz(6)
+  shiftNo           String?
+  shiftDate         DateTime?     @db.Date
+  amount            Decimal       @db.Decimal(18, 4)
+  volume            Decimal?      @db.Decimal(18, 4)
+  unitPrice         Decimal?      @db.Decimal(18, 4)
+  productName       String?
+  unitOfMeasure     String?
+  pumpId            String?
+  hoseId            String?
+  tankId            String?
+  attendantName     String?
+  customerId        String?
+  customerName      String?
+  billingType       String?
+  paymentType       String?
+  isReconciled      Boolean       @default(false)
+  storeCode         String
+  lineNo            Int           @default(0)
+  discount          Decimal?      @db.Decimal(18, 4)
+  reconcilerShiftId String?
+  saleHeaderId      String?
+  appliedDocNo      String?
+  discountPct       Decimal?      @db.Decimal(18, 4)
+  docType           Int?
+  fsAmount          Decimal?      @db.Decimal(18, 4)
+  fsFinalVolume     Decimal?      @db.Decimal(18, 4)
+  fsInitialVolume   Decimal?      @db.Decimal(18, 4)
+  fsPPU             Decimal?      @db.Decimal(18, 4)
+  fsShiftId         String?
+  fsVolume          Decimal?      @db.Decimal(18, 4)
+  saleHeader        BoSaleHeader? @relation(fields: [saleHeaderId], references: [id])
+
+  @@unique([source, storeCode, externalId, lineNo])
+  @@index([timestamp])
+  @@index([attendantName])
+  @@index([shiftNo])
+  @@index([saleIdFusion])
+  @@index([storeCode])
+  @@index([reconcilerShiftId])
+  @@index([saleHeaderId])
+}
+
+model BoShift {
+  id                  String    @id @default(uuid())
+  source              String    @default("TPV")
+  storeCode           String
+  shiftDate           DateTime  @db.Date
+  shiftNo             String
+  employeeName        String
+  startTime           DateTime  @db.Timestamptz(6)
+  endTime             DateTime? @db.Timestamptz(6)
+  status              String    @default("OPEN")
+  totalSale           Decimal   @default(0) @db.Decimal(18, 4)
+  totalDiscount       Decimal   @default(0) @db.Decimal(18, 4)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  posCodes            String?   @map("pos_codes")
+  reconcilerShiftId   String?   @map("reconciler_shift_id")
+  creditNoteCount     Int       @default(0)
+  invoiceCashCount    Int       @default(0)
+  invoiceCreditCount  Int       @default(0)
+  outflowCount        Int       @default(0)
+  fsShiftIds          String?   @map("fs_shift_ids")
+  cardDeclared        Decimal?  @db.Decimal(18, 4)
+  cashDeclared        Decimal?  @db.Decimal(18, 4)
+  isBalanced          Boolean   @default(false)
+  isPresented         Boolean   @default(false)
+  otherDeclared       Decimal?  @db.Decimal(18, 4)
+  presentationDate    DateTime? @db.Timestamptz(6)
+  presentationDetails String?   @db.Text
+  presentationComment String?   @db.Text
+  auditStatus         String    @default("PENDING")
+  auditedBy           String?
+  auditNotes          String?   @db.Text
+  auditedAt           DateTime? @db.Timestamptz(6)
+  cashVariance        Decimal?  @db.Decimal(18, 4)
+  fuelVariance        Decimal?  @db.Decimal(18, 4)
+  isLocked            Boolean   @default(false)
+
+  @@unique([source, storeCode, shiftDate, shiftNo, employeeName])
+  @@index([shiftDate])
+  @@index([employeeName])
+  @@index([storeCode])
+  @@index([auditStatus])
+}
+
+model BoStore {
+  id                     String    @id @default(uuid())
+  code                   String    @unique
+  name                   String
+  address                String?
+  ip                     String
+  isActive               Boolean   @default(true)
+  createdAt              DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(6)
+  RTN                    String?
+  titulo                 String?
+  apiUrl                 String?
+  lanUrl                 String?
+  showDetailsInStatement Boolean   @default(true)
+  logoUrl                String?
+  frontendUrl            String?
+  isLocalStore           Boolean   @default(false)
+  moduleCustomers        Int?      @default(1)
+  printCreditInvoices    Boolean   @default(false)
+  SyncMinutes            Int?      @default(300)
+  PresentationMinutes    Int?      @default(30)
+  dbPort                 Int?      @default(5432)
+  dbName                 String?   @default("prisma")
+  dbUser                 String?
+  dbPassword             String?
+  dbSsl                  Boolean?  @default(false)
+  lastSeenAt             DateTime? @db.Timestamptz(6)
+  latencyMs              Int?
+  healthStatus           String?   @default("ONLINE")
+  lastSyncAt             DateTime? @db.Timestamptz(6)
+  lastSyncStatus         String?
+  lastSyncError          String?   @db.Text
+
+  // Wayne Fusion / Hardware
+  ipFusion               String?
+  urlControlador         String?
+  claveControlador       String?
+  esControladorGas       Boolean?  @default(false)
+
+  // Parametros generales adicionales
+  emisor                 String?
+  moneda                 String?   @default("HNL")
+  codigoMoneda           String?   @default("HNL")
+  telefono               String?
+  correo                 String?
+
+  // Configuracion POS (espejo de configuracion_pos del POS local)
+  posConfig              Json?
+
+  // Versionado monótono para bootstrap y sync downstream
+  configVersion          Int       @default(1)
+  configUpdatedAt        DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model BoPaymentMethod {
+  id                String       @id @default(uuid())
+  source            String       @default("TPV")
+  storeCode         String
+  transactionId     String
+  chargeLineNo      Int
+  shiftDate         DateTime     @db.Date
+  shiftNo           String
+  employeeName      String
+  chargeMethodCode  String
+  description       String
+  amount            Decimal      @db.Decimal(18, 4)
+  paymentCardNo     String?
+  additionalData    String?
+  reconcilerShiftId String?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(6)
+  esTicket          Boolean      @default(false)
+  saleHeader        BoSaleHeader @relation(fields: [source, storeCode, transactionId], references: [source, storeCode, transactionId], onUpdate: NoAction)
+
+  @@unique([source, storeCode, transactionId, chargeLineNo])
+  @@index([storeCode])
+  @@index([shiftDate])
+  @@index([shiftNo])
+  @@index([employeeName])
+  @@index([reconcilerShiftId])
+}
+
+model BoReconciliation {
+  id            String    @id @default(uuid())
+  type          String
+  shiftNo       String?
+  shiftDate     DateTime? @db.Date
+  attendantName String?
+  pumpId        String?
+  status        String
+  difference    Decimal?  @db.Decimal(18, 4)
+  signedBy      String?
+  signatureData String?   @db.Text
+  signedAt      DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+}
+
+model BoHose {
+  id             String   @id @default(uuid())
+  storeCode      String
+  pumpId         Int
+  hoseId         Int
+  gradeId        Int
+  gradeName      String
+  unitPrice      Decimal? @db.Decimal(18, 4)
+  tankId         String?
+  hosePhysicalId Int?
+  posCode        String?
+  genericCode    String?
+  unitOfMeasure  String?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([storeCode, pumpId, hoseId])
+  @@index([storeCode])
+}
+
+model BoSaleHeader {
+  id                String            @id @default(uuid())
+  source            String            @default("TPV")
+  storeCode         String
+  transactionId     String
+  docType           Int
+  docNo             String
+  shiftDate         DateTime          @db.Date
+  shiftNo           String
+  employeeName      String
+  customerNo        String?
+  customerName      String?
+  rtn               String?
+  subTotal          Decimal           @db.Decimal(18, 4)
+  totalAmount       Decimal           @db.Decimal(18, 4)
+  km                String?
+  orden             String?
+  placa             String?
+  chofer            String?
+  reconcilerShiftId String?
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(6)
+  appliedDocNo      String?
+  payments          BoPaymentMethod[]
+  lines             BoSale[]
+
+  @@unique([source, storeCode, transactionId])
+  @@index([shiftDate])
+  @@index([shiftNo])
+  @@index([storeCode])
+  @@index([reconcilerShiftId])
+  @@index([docType])
+}
+
+model TankMeasurement {
+  id          String   @id @default(uuid())
+  storeCode   String
+  shiftDate   DateTime @db.Date
+  shiftNo     String
+  tankId      String
+  measureType String
+  height      Decimal  @db.Decimal(10, 2)
+  volume      Decimal  @db.Decimal(10, 2)
+  waterLevel  Decimal? @db.Decimal(10, 2)
+  temperature Decimal? @db.Decimal(5, 2)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([shiftDate])
+  @@index([storeCode])
+}
+
+model BoPrintedReport {
+  id               String   @id @default(uuid())
+  storeCode        String
+  shiftDate        DateTime @db.Date
+  shiftNo          String
+  employeeName     String
+  printedBy        String
+  printedAt        DateTime @default(now()) @db.Timestamptz(6)
+  stationName      String
+  version          Int      @default(1)
+  turnoControlador String?
+  id_contadores    String?
+  dataSnapshot     String?  @db.Text
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([storeCode])
+  @@index([shiftDate])
+  @@index([shiftNo])
+}
+
+model BoSyncLock {
+  lockKey   String   @id
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  email     String?
+  role      String   @default("OPERATOR")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  userRoles UserRole[]
+
+  @@index([username])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  storeCode String?
+  userId    String?
+  metadata  String?  @db.Text
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([createdAt])
+  @@index([entity])
+  @@index([entityId])
+}
+
+model Role {
+  id          String           @id
+  name        String
+  description String?
+  isSystem    Boolean          @default(false)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(6)
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id
+  name        String
+  module      String
+  description String?
+  createdAt   DateTime         @default(now()) @db.Timestamptz(6)
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  assignedAt   DateTime   @default(now()) @db.Timestamptz(6)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now()) @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model BoAlertConfig {
+  id                      String   @id @default(uuid())
+  recipientEmails         String   @db.Text
+  cashVarianceThreshold   Decimal  @default(50.0) @db.Decimal(18, 4)
+  alertsEnabled           Boolean  @default(true)
+  shiftDiscrepancyEnabled Boolean  @default(true)
+  fiscalGapEnabled        Boolean  @default(true)
+  offlineStoreEnabled     Boolean  @default(true)
+  offlineMinutesThreshold Int      @default(15)
+  cooldownMinutes         Int      @default(60)
+  createdAt               DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime @updatedAt @db.Timestamptz(6)
+}
