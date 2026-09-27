@@ -352,8 +352,6 @@ describe('PrismaPresentationRepository', () => {
           printedBy: 'admin',
           stationName: 'Station 1',
           version: 3,
-          turnoControlador: 'TC-1',
-          id_contadores: 42,
           dataSnapshot: JSON.stringify(details),
           printedAt: expect.any(Date),
         },
@@ -380,8 +378,6 @@ describe('PrismaPresentationRepository', () => {
       expect(prisma.boPrintedReport.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           stationName: 'Unknown Station',
-          turnoControlador: null,
-          id_contadores: null,
         }),
       });
       expect(result.success).toBe(true);

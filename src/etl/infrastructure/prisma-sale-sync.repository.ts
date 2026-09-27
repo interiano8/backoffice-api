@@ -200,16 +200,15 @@ export class PrismaSaleSyncRepository {
         v.tipo_documento as "DocType",
         v.documento_relacionado as "AppliedDocNo", 
         CAST(v.tipo_facturacion AS TEXT) as "POSSalesType",
-        vc.monto as "fsAmount", 
-        vc.precio_unitario as "fsPPU",
-        vc.volumen as "fsVolume", 
-        vc.volumen_final as "fsFinalVolume",
-        vc.volumen_inicial as "fsInitialVolume", 
-        vc.id_turno as "fsShiftId"
+        CASE WHEN lv.numero_bomba IS NOT NULL THEN lv.monto_con_isv ELSE NULL END as "fsAmount", 
+        CASE WHEN lv.numero_bomba IS NOT NULL THEN lv.precio_unitario_con_isv ELSE NULL END as "fsPPU", 
+        CASE WHEN lv.numero_bomba IS NOT NULL THEN lv.cantidad ELSE NULL END as "fsVolume", 
+        NULL as "fsFinalVolume", 
+        NULL as "fsInitialVolume", 
+        NULL as "fsShiftId"
       FROM ventas v
       JOIN lineas_venta lv ON v.id_transaccion_pos = lv.id_transaccion_pos AND v.numero_emisor = lv.numero_emisor
       LEFT JOIN turnos t ON v.id_transaccion_pos = t.id_transaccion_pos
-      LEFT JOIN ventas_combustible vc ON CAST(vc.id_venta AS TEXT) = lv.id_venta
       ${whereClause}
     `;
 

@@ -280,8 +280,6 @@ model BoPrintedReport {
   printedAt        DateTime @default(now()) @db.Timestamptz(6)
   stationName      String
   version          Int      @default(1)
-  turnoControlador String?
-  id_contadores    String?
   dataSnapshot     String?  @db.Text
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @db.Timestamptz(6)

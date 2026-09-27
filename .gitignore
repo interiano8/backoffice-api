@@ -15,6 +15,7 @@ build/
 
 # Tests and Coverage
 coverage/
+src/coverage/
 stryker-report/
 .stryker-tmp/
 

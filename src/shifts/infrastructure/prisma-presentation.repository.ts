@@ -232,8 +232,6 @@ export class PrismaPresentationRepository implements PresentationRepository {
         printedBy,
         stationName: details.stationName || 'Unknown Station',
         version: count + 1,
-        turnoControlador: details.turnoControlador || null,
-        id_contadores: details.id_contadores || null,
         dataSnapshot: JSON.stringify(details),
         printedAt: new Date(),
       },

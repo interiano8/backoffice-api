@@ -32,8 +32,6 @@ export interface PresentationData {
 
 export interface PrintDetails {
   stationName: string;
-  turnoControlador?: string;
-  id_contadores?: string;
   [key: string]: unknown;
 }
 
