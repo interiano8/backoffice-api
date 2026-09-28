@@ -5,6 +5,7 @@ import { EntityNotFoundException, ValidationException } from '../../../common/do
 describe('UsersUseCase', () => {
   let useCase: UsersUseCase;
   let mockRepo: jest.Mocked<UserRepository>;
+  let mockSyncService: { bumpMasterVersion: jest.Mock };
 
   const mockUser: UserEntity = {
     id: 'u-1',
@@ -26,7 +27,10 @@ describe('UsersUseCase', () => {
       update: jest.fn().mockResolvedValue(mockUser),
       remove: jest.fn().mockResolvedValue(undefined),
     };
-    useCase = new UsersUseCase(mockRepo);
+    mockSyncService = {
+      bumpMasterVersion: jest.fn(),
+    };
+    useCase = new UsersUseCase(mockRepo, mockSyncService as any);
   });
 
   it('should list all users', async () => {
@@ -117,5 +121,25 @@ describe('UsersUseCase', () => {
   it('should delete user and throw if not found', async () => {
     mockRepo.findById.mockResolvedValueOnce(null);
     await expect(useCase.remove('non-existent')).rejects.toThrow(EntityNotFoundException);
+  });
+
+  it('should bump master version on successful user creation', async () => {
+    await useCase.create({
+      username: 'newuser',
+      password: 'password123',
+      name: 'New User',
+      email: 'newuser@bcpos.space',
+    });
+    expect(mockSyncService.bumpMasterVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('should bump master version on successful user update', async () => {
+    await useCase.update('u-1', { name: 'Updated Name' });
+    expect(mockSyncService.bumpMasterVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('should bump master version on successful user deletion', async () => {
+    await useCase.remove('u-1');
+    expect(mockSyncService.bumpMasterVersion).toHaveBeenCalledTimes(1);
   });
 });

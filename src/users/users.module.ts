@@ -1,13 +1,14 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsersUseCase } from './application/use-cases/users.use-case';
 import { TpvUserRepository } from './infrastructure/tpv-user.repository';
 import { UsersController } from './users.controller';
 import { USERS_USE_CASE, USER_REPOSITORY } from './users.tokens';
 import { ConnectionsModule } from '../common/connections/connections.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SyncModule } from '../sync/sync.module';
 
 @Module({
-  imports: [ConnectionsModule, PrismaModule],
+  imports: [ConnectionsModule, PrismaModule, forwardRef(() => SyncModule)],
   controllers: [UsersController],
   providers: [
     { provide: USERS_USE_CASE, useClass: UsersUseCase },

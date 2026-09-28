@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { SyncUpDto, SyncSaleDto, SyncShiftDto } from './dto/sync-up.dto';
-import type { SyncMastersResponseDto } from './dto/sync-masters.dto';
+import type { SyncMastersResponseDto, SyncMasterUserDto } from './dto/sync-masters.dto';
 import { AlertConfigService } from '../alerts/alert-config.service';
 import { BrevoNotificationService } from '../alerts/brevo-notification.service';
 import { AlertTemplateBuilder } from '../alerts/alert-template.builder';
@@ -539,10 +539,21 @@ export class SyncService {
     }
   }
 
+  private masterVersionOffset = 0;
+
+  bumpMasterVersion(): number {
+    this.masterVersionOffset += 1;
+    return this.getMasterVersion();
+  }
+
+  getMasterVersion(): number {
+    return Math.floor(Date.now() / 60000) + this.masterVersionOffset;
+  }
+
   async getMasters(storeCode: string, sinceVersion?: number): Promise<SyncMastersResponseDto> {
     const now = new Date();
-    // Versión secuencial basada en fecha/época o contador monótono
-    const currentVersion = Math.floor(now.getTime() / 60000); // Versión en minutos
+    // Versión secuencial basada en época + offset reactivo de cambios
+    const currentVersion = this.getMasterVersion();
 
     if (sinceVersion && sinceVersion >= currentVersion) {
       return {
@@ -552,6 +563,8 @@ export class SyncService {
         customers: [],
         fuelPrices: [],
         products: [],
+        discountRules: [],
+        users: [],
       };
     }
 
@@ -573,6 +586,29 @@ export class SyncService {
       effectiveDate: h.updatedAt.toISOString(),
     }));
 
+    // Consultar catálogo central de usuarios y credenciales para replicación al POS
+    let usersList: any[] = [];
+    if (this.prisma.user?.findMany) {
+      usersList = await this.prisma.user.findMany({
+        select: {
+          username: true,
+          name: true,
+          password: true,
+          role: true,
+          isActive: true,
+        },
+        orderBy: { username: 'asc' },
+      });
+    }
+
+    const users: SyncMasterUserDto[] = usersList.map((u) => ({
+      username: u.username,
+      name: u.name,
+      passwordHash: u.password,
+      role: u.role,
+      active: u.isActive,
+    }));
+
     return {
       masterVersion: currentVersion,
       generatedAt: now.toISOString(),
@@ -581,6 +617,7 @@ export class SyncService {
       fuelPrices,
       products: [],
       discountRules: [],
+      users,
     };
   }
 

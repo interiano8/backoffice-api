@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject, Optional } from '@nestjs/common';
 import type {
   IUsersUseCase,
   CreateUserData,
@@ -11,6 +11,7 @@ import type {
 } from '../../domain/ports/user-repository.interface';
 import { USER_REPOSITORY } from '../../users.tokens';
 import { EntityNotFoundException, ValidationException } from '../../../common/domain/exceptions/domain.exception';
+import { SyncService } from '../../../sync/sync.service';
 
 @Injectable()
 export class UsersUseCase implements IUsersUseCase {
@@ -18,6 +19,7 @@ export class UsersUseCase implements IUsersUseCase {
 
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepo: UserRepository,
+    @Optional() private readonly syncService?: SyncService,
   ) {}
 
   async findAll(): Promise<UserEntity[]> {
@@ -69,12 +71,14 @@ export class UsersUseCase implements IUsersUseCase {
       throw new ValidationException(`Email "${email}" is already in use.`);
     }
 
-    return this.userRepo.create({
+    const created = await this.userRepo.create({
       ...data,
       username,
       name,
       email,
     });
+    this.syncService?.bumpMasterVersion();
+    return created;
   }
 
   async update(id: string, data: UpdateUserData): Promise<UserEntity> {
@@ -107,7 +111,9 @@ export class UsersUseCase implements IUsersUseCase {
       }
     }
 
-    return this.userRepo.update(id, data);
+    const updated = await this.userRepo.update(id, data);
+    this.syncService?.bumpMasterVersion();
+    return updated;
   }
 
   async remove(id: string): Promise<void> {
@@ -116,5 +122,6 @@ export class UsersUseCase implements IUsersUseCase {
       throw new EntityNotFoundException('User', id);
     }
     await this.userRepo.remove(id);
+    this.syncService?.bumpMasterVersion();
   }
 }

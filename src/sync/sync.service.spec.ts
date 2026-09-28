@@ -41,6 +41,9 @@ describe('SyncService & SyncController', () => {
           },
         ]),
       },
+      user: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -419,6 +422,33 @@ describe('SyncService & SyncController', () => {
       const result = await service.getMasters('001', futureVersion);
       expect(result.hasUpdates).toBe(false);
       expect(result.fuelPrices).toHaveLength(0);
+      expect(result.users).toHaveLength(0);
+    });
+
+    it('incluye usuarios en el payload maestro cuando hay actualizaciones', async () => {
+      prismaMock.user.findMany.mockResolvedValueOnce([
+        {
+          username: 'cajero1',
+          name: 'Cajero Uno',
+          password: 'hashed-password-123',
+          role: 'OPERATOR',
+          isActive: true,
+        },
+      ]);
+
+      const result = await service.getMasters('001', 0);
+      expect(result.users).toHaveLength(1);
+      expect(result.users[0].username).toBe('cajero1');
+      expect(result.users[0].name).toBe('Cajero Uno');
+      expect(result.users[0].passwordHash).toBe('hashed-password-123');
+      expect(result.users[0].role).toBe('OPERATOR');
+      expect(result.users[0].active).toBe(true);
+    });
+
+    it('incrementa masterVersion al invocar bumpMasterVersion()', async () => {
+      const v1 = service.getMasterVersion();
+      const v2 = service.bumpMasterVersion();
+      expect(v2).toBe(v1 + 1);
     });
   });
 

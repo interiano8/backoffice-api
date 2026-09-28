@@ -46,6 +46,16 @@ export interface SyncMasterDiscountRuleDto {
   idTienda?: string | null;
 }
 
+export interface SyncMasterUserDto {
+  username: string;
+  name: string;
+  passwordHash: string;
+  role: string;
+  pin?: string | null;
+  rfid?: string | null;
+  active: boolean;
+}
+
 export interface SyncMastersResponseDto {
   masterVersion: number;
   generatedAt: string;
@@ -54,4 +64,6 @@ export interface SyncMastersResponseDto {
   fuelPrices: SyncMasterFuelPriceDto[];
   products: SyncMasterProductDto[];
   discountRules?: SyncMasterDiscountRuleDto[];
+  users: SyncMasterUserDto[];
 }
+

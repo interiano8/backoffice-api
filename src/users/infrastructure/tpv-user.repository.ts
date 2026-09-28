@@ -319,7 +319,7 @@ export class TpvUserRepository implements UserRepository {
           : crypto.createHash('sha256').update(data.password).digest('hex');
       }
 
-      if (data.email !== undefined && this.prisma?.user) {
+      if (this.prisma?.user) {
         try {
           const userRecord = await this.prisma.user.findFirst({
             where: {
@@ -330,13 +330,22 @@ export class TpvUserRepository implements UserRepository {
             },
           });
           if (userRecord) {
-            await this.prisma.user.update({
-              where: { id: userRecord.id },
-              data: { email: data.email?.trim() || null },
-            });
+            const prismaUpdate: any = {};
+            if (data.email !== undefined) prismaUpdate.email = data.email?.trim() || null;
+            if (data.name !== undefined) prismaUpdate.name = data.name?.trim() || '';
+            if (data.role !== undefined) prismaUpdate.role = data.role;
+            if (data.isActive !== undefined) prismaUpdate.isActive = Boolean(data.isActive);
+            if (params.passwordHash) prismaUpdate.password = params.passwordHash;
+
+            if (Object.keys(prismaUpdate).length > 0) {
+              await this.prisma.user.update({
+                where: { id: userRecord.id },
+                data: prismaUpdate,
+              });
+            }
           }
         } catch (e: any) {
-          this.logger.warn(`Could not sync email to prisma.user: ${e.message}`);
+          this.logger.warn(`Could not sync update to prisma.user: ${e.message}`);
         }
       }
 
@@ -373,6 +382,24 @@ export class TpvUserRepository implements UserRepository {
         'DELETE FROM empleados WHERE CAST(id AS TEXT) = @id OR TRIM(usuario) ILIKE TRIM(@id)',
         { id: cleanId },
       );
+
+      if (this.prisma?.user) {
+        try {
+          const userRecord = await this.prisma.user.findFirst({
+            where: {
+              OR: [
+                { id: cleanId },
+                { username: { equals: cleanId, mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (userRecord) {
+            await this.prisma.user.delete({ where: { id: userRecord.id } });
+          }
+        } catch (e: any) {
+          this.logger.warn(`Could not remove user from prisma.user: ${e.message}`);
+        }
+      }
     } catch (error: any) {
       this.logger.error(`Error removing user from empleados: ${error.message}`);
       throw new Error(`Error al eliminar usuario: ${error.message}`);
