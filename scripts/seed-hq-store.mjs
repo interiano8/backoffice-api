@@ -34,7 +34,7 @@ async function main() {
     where: { code: { not: '000' } },
   });
 
-  const hqData: Record<string, unknown> = {
+  const hqData = {
     code: '000',
     name: first?.name?.includes('Matriz') ? first.name : 'Casa Matriz',
     ip: '127.0.0.1',
@@ -45,7 +45,7 @@ async function main() {
 
   if (first) {
     for (const field of HQ_FIELDS) {
-      const v = (first as any)?.[field];
+      const v = first?.[field];
       if (v !== undefined && v !== null && v !== '') {
         hqData[field] = v;
       }
@@ -60,7 +60,7 @@ async function main() {
     console.log(`[SEED] Copiando campos de empresa desde tienda '${first.code}'...`);
   }
 
-  await prisma.boStore.create({ data: hqData as any });
+  await prisma.boStore.create({ data: hqData });
   console.log('[SEED] Casa matriz (000) creada con éxito.');
 }
 
