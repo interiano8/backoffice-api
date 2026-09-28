@@ -2,7 +2,7 @@ import { PrismaHoseRepository } from './prisma-hose.repository';
 
 describe('PrismaHoseRepository', () => {
   let repo: PrismaHoseRepository;
-  let boHose: { findMany: jest.Mock; update: jest.Mock };
+  let boHose: { findMany: jest.Mock; update: jest.Mock; upsert: jest.Mock; delete: jest.Mock };
 
   const fakeHose = { id: 'hose-1', pumpId: 1, hoseId: 1, unitPrice: 100 };
 
@@ -11,6 +11,8 @@ describe('PrismaHoseRepository', () => {
     boHose = {
       findMany: jest.fn().mockResolvedValue([fakeHose]),
       update: jest.fn().mockResolvedValue({ ...fakeHose, unitPrice: 150 }),
+      upsert: jest.fn().mockResolvedValue({ ...fakeHose, gradeName: 'Gasolina Superior' }),
+      delete: jest.fn().mockResolvedValue(fakeHose),
     };
     repo = new PrismaHoseRepository({ boHose } as any);
   });
@@ -42,6 +44,28 @@ describe('PrismaHoseRepository', () => {
         where: { id: 'hose-1' },
         data: { unitPrice: 150 },
       });
+    });
+  });
+
+  describe('create', () => {
+    it('should upsert a hose', async () => {
+      const data = {
+        storeCode: 'S01',
+        pumpId: 1,
+        hoseId: 1,
+        gradeName: 'Gasolina Superior',
+        unitPrice: 120,
+      };
+      const result = await repo.create(data);
+      expect(boHose.upsert).toHaveBeenCalled();
+      expect(result.gradeName).toBe('Gasolina Superior');
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete a hose by id', async () => {
+      await repo.delete('hose-1');
+      expect(boHose.delete).toHaveBeenCalledWith({ where: { id: 'hose-1' } });
     });
   });
 });

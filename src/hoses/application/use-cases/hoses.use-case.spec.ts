@@ -20,6 +20,9 @@ describe('HosesUseCase', () => {
     mockRepo = {
       findByStore: jest.fn().mockResolvedValue([mockHose]),
       updatePrice: jest.fn().mockResolvedValue({ ...mockHose, unitPrice: 31.0 }),
+      create: jest.fn().mockResolvedValue(mockHose),
+      update: jest.fn().mockResolvedValue({ ...mockHose, gradeName: 'Diesel' }),
+      delete: jest.fn().mockResolvedValue(undefined),
     };
     useCase = new HosesUseCase(mockRepo);
   });
@@ -43,5 +46,30 @@ describe('HosesUseCase', () => {
 
   it('should throw ValidationException if price is negative', async () => {
     await expect(useCase.updatePrice('h-1', -5)).rejects.toThrow(ValidationException);
+  });
+
+  it('should create a new hose', async () => {
+    const data = {
+      storeCode: 'STORE01',
+      pumpId: 1,
+      hoseId: 2,
+      gradeName: 'Diesel',
+      unitPrice: 28.5,
+    };
+    const result = await useCase.create(data);
+    expect(mockRepo.create).toHaveBeenCalledWith(data);
+    expect(result).toBeDefined();
+  });
+
+  it('should throw ValidationException when creating without required fields', async () => {
+    await expect(useCase.create({ storeCode: '', pumpId: 1, hoseId: 1, gradeName: 'Super' })).rejects.toThrow(ValidationException);
+    await expect(useCase.create({ storeCode: 'STORE01', pumpId: 0, hoseId: 1, gradeName: 'Super' })).rejects.toThrow(ValidationException);
+    await expect(useCase.create({ storeCode: 'STORE01', pumpId: 1, hoseId: 0, gradeName: 'Super' })).rejects.toThrow(ValidationException);
+    await expect(useCase.create({ storeCode: 'STORE01', pumpId: 1, hoseId: 1, gradeName: '' })).rejects.toThrow(ValidationException);
+  });
+
+  it('should delete a hose', async () => {
+    await expect(useCase.delete('h-1')).resolves.toBeUndefined();
+    expect(mockRepo.delete).toHaveBeenCalledWith('h-1');
   });
 });
