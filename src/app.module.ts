@@ -22,6 +22,7 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { AuditModule } from './audit/audit.module';
 import { SyncModule } from './sync/sync.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { AccountingModule } from './accounting/accounting.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { AlertsModule } from './alerts/alerts.module';
     AuditModule,
     SyncModule,
     AlertsModule,
+    AccountingModule,
   ],
   controllers: [AppController],
   providers: [

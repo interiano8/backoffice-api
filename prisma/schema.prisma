@@ -383,3 +383,129 @@ model BoAlertConfig {
   createdAt               DateTime @default(now()) @db.Timestamptz(6)
   updatedAt               DateTime @updatedAt @db.Timestamptz(6)
 }
+
+// ==========================================
+// MÓDULO DE CONTABILIDAD
+// ==========================================
+
+model Account {
+  id              String             @id @default(uuid())
+  code            String             @unique
+  name            String
+  type            String             // ASSET, LIABILITY, EQUITY, REVENUE, COST, EXPENSE
+  nature          String             // DEBIT, CREDIT
+  level           Int                @default(1)
+  parentId        String?
+  parent          Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children        Account[]          @relation("AccountHierarchy")
+  allowsMovement  Boolean            @default(true)
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+
+  journalLines    JournalEntryLine[]
+  mappings        AccountingMapping[]
+
+  @@index([code])
+  @@index([type])
+  @@map("accounts")
+}
+
+model CostCenter {
+  id              String             @id @default(uuid())
+  code            String             @unique
+  name            String
+  storeCode       String?            // Enlace con BoStore.code
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+
+  journalLines    JournalEntryLine[]
+  mappings        AccountingMapping[]
+
+  @@index([code])
+  @@index([storeCode])
+  @@map("cost_centers")
+}
+
+model FiscalPeriod {
+  id              String         @id @default(uuid())
+  year            Int
+  month           Int            // 1 al 12
+  status          String         @default("OPEN") // OPEN, CLOSED
+  closedAt        DateTime?      @db.Timestamptz(6)
+  closedBy        String?
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(6)
+
+  journalEntries  JournalEntry[]
+
+  @@unique([year, month])
+  @@map("fiscal_periods")
+}
+
+model AccountingMapping {
+  id               String       @id @default(uuid())
+  category         String       // PAYMENT_METHOD, FUEL_PRODUCT, STORE_PRODUCT, TAX_ISV, CASH_SHORTAGE, CASH_SURPLUS, CUSTOMER_CREDIT
+  sourceIdentifier String       // e.g. "CASH", "CARD", "CREDIT", gradeId "1", "ISV15"
+  accountId        String
+  account          Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  costCenterId     String?
+  costCenter       CostCenter?  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(6)
+
+  @@index([category, sourceIdentifier])
+  @@index([costCenterId])
+  @@map("accounting_mappings")
+}
+
+model JournalEntry {
+  id              String             @id @default(uuid())
+  entryNumber     Int                @default(autoincrement())
+  date            DateTime           @db.Date
+  type            String             @default("DIARY") // DIARY, INCOME, EXPENSE, REVERSAL
+  concept         String             @db.Text
+  status          String             @default("DRAFT") // DRAFT, POSTED, VOIDED
+  sourceRef       String?            // e.g. "shift:uuid" or "receipt:uuid"
+  totalDebit      Decimal            @default(0) @db.Decimal(18, 4)
+  totalCredit     Decimal            @default(0) @db.Decimal(18, 4)
+  notes           String?            @db.Text
+  fiscalPeriodId  String?
+  fiscalPeriod    FiscalPeriod?      @relation(fields: [fiscalPeriodId], references: [id])
+  createdById     String?
+  approvedById    String?
+  approvedAt      DateTime?          @db.Timestamptz(6)
+  reversedById    String?
+  reversedAt      DateTime?          @db.Timestamptz(6)
+  reversalEntryId String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(6)
+
+  lines           JournalEntryLine[]
+
+  @@index([date])
+  @@index([status])
+  @@index([sourceRef])
+  @@index([entryNumber])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id              String        @id @default(uuid())
+  entryId         String
+  entry           JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id])
+  costCenterId    String?
+  costCenter      CostCenter?   @relation(fields: [costCenterId], references: [id])
+  debit           Decimal       @default(0) @db.Decimal(18, 4)
+  credit          Decimal       @default(0) @db.Decimal(18, 4)
+  description     String?       @db.Text
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([costCenterId])
+  @@map("journal_entry_lines")
+}
