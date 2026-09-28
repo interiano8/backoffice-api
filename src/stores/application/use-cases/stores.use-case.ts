@@ -66,7 +66,7 @@ export class StoresUseCase implements IStoresUseCase {
 
   /** Campos de la empresa que se heredan de la casa matriz (tienda 000). */
   private readonly HQ_INHERITED_FIELDS: (keyof import('../../domain/ports/stores-repository.interface').StoreEntity)[] = [
-    'titulo', 'RTN', 'address', 'logoUrl', 'moduleCustomers', 'printCreditInvoices',
+    'titulo', 'RTN', 'address', 'logoUrl', 'moduleCustomers', 'moduleAccounting', 'printCreditInvoices',
     'SyncMinutes', 'PresentationMinutes', 'emisor', 'moneda', 'codigoMoneda',
     'telefono', 'correo',
   ];

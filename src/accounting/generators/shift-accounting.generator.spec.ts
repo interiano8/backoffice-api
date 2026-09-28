@@ -15,6 +15,7 @@ describe('ShiftAccountingGenerator', () => {
   beforeEach(async () => {
     prisma = {
       boShift: { findUnique: jest.fn() },
+      boStore: { findUnique: jest.fn().mockResolvedValue({ moduleAccounting: 1 }) },
       boSaleHeader: { findMany: jest.fn() },
       journalEntry: { findFirst: jest.fn() },
     };
@@ -76,7 +77,7 @@ describe('ShiftAccountingGenerator', () => {
     prisma.journalEntry.findFirst.mockResolvedValue(null);
 
     const res = await generator.generateEntryForShift('shift-1', 'user1');
-    expect(res.id).toBe('entry-created');
+    expect(res?.id).toBe('entry-created');
     expect(journalEntriesService.createEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'DIARY',
@@ -104,6 +105,10 @@ describe('ShiftAccountingGenerator', () => {
       totalSale: 1000,
     });
 
+    prisma.boStore.findUnique.mockResolvedValue({
+      moduleAccounting: 1,
+    });
+
     prisma.boSaleHeader.findMany.mockResolvedValue([
       {
         totalAmount: 1000,
@@ -126,5 +131,20 @@ describe('ShiftAccountingGenerator', () => {
       }),
       'user1',
     );
+  });
+
+  it('debe omitir la generación si la estación tiene el módulo de contabilidad deshabilitado', async () => {
+    prisma.boShift.findUnique.mockResolvedValue({
+      id: 'shift-disabled',
+      storeCode: '002',
+    });
+
+    prisma.boStore.findUnique.mockResolvedValue({
+      moduleAccounting: 0,
+    });
+
+    const res = await generator.generateEntryForShift('shift-disabled', 'user1');
+    expect(res).toBeNull();
+    expect(journalEntriesService.createEntry).not.toHaveBeenCalled();
   });
 });

@@ -24,6 +24,16 @@ export class ShiftAccountingGenerator {
       throw new BadRequestException(`Turno con ID ${shiftId} no encontrado`);
     }
 
+    // 0. Verificar si el módulo contable está habilitado para la estación
+    const store = await this.prisma.boStore.findUnique({
+      where: { code: shift.storeCode },
+      select: { moduleAccounting: true },
+    });
+    if (store && store.moduleAccounting === 0) {
+      this.logger.log(`Generación de póliza omitida para turno ${shift.id}: módulo de contabilidad deshabilitado para tienda ${shift.storeCode}`);
+      return null;
+    }
+
     // 1. Obtener o crear Centro de Costo para la estación
     let costCenter = await this.costCentersService.getCostCenterByCode(shift.storeCode);
     if (!costCenter) {

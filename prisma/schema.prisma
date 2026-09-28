@@ -118,6 +118,7 @@ model BoStore {
   frontendUrl            String?
   isLocalStore           Boolean   @default(false)
   moduleCustomers        Int?      @default(1)
+  moduleAccounting       Int?      @default(1)
   printCreditInvoices    Boolean   @default(false)
   SyncMinutes            Int?      @default(300)
   PresentationMinutes    Int?      @default(30)

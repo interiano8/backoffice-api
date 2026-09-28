@@ -42,6 +42,7 @@ export class PrismaStoresRepository implements StoresRepository {
         apiUrl: true,
         lanUrl: true,
         moduleCustomers: true,
+        moduleAccounting: true,
         printCreditInvoices: true,
         SyncMinutes: true,
         PresentationMinutes: true,

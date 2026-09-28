@@ -16,6 +16,7 @@ export interface StoreEntity {
   logoUrl?: string;
   isActive?: boolean;
   moduleCustomers?: number;
+  moduleAccounting?: number;
   printCreditInvoices?: boolean;
   SyncMinutes?: number;
   PresentationMinutes?: number;
