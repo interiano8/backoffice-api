@@ -28,5 +28,10 @@ if [ -f "scripts/seed-hq-store.mjs" ]; then
   node scripts/seed-hq-store.mjs || true
 fi
 
+if [ -f "scripts/seed-accounting.mjs" ]; then
+  echo "[Matriz Hub] Verificando catálogo contable NIIF/SAR y mapeos..."
+  node scripts/seed-accounting.mjs || true
+fi
+
 echo "[Matriz Hub] Arrancando servicio en puerto ${PORT:-3089}..."
 exec node dist/main.js
