@@ -32,6 +32,11 @@ export class StoresUseCase implements IStoresUseCase {
   }
 
   async create(data: any, userId?: string) {
+    // La casa matriz (000) no puede crearse como estación operativa; se siembra aparte.
+    if (data.code && String(data.code).trim().toUpperCase() === '000') {
+      throw new ConflictException('El código 000 está reservado para la casa matriz.');
+    }
+
     if (data.code && this.storesRepo.findByCode) {
       const existing = await this.storesRepo.findByCode(data.code);
       if (existing) {
@@ -39,7 +44,11 @@ export class StoresUseCase implements IStoresUseCase {
       }
     }
 
-    const store = await this.storesRepo.create(data);
+    // Herencia de la casa matriz: los campos comunes se prellenan con los valores
+    // de la tienda 000 cuando el payload no los especifica (se copian, luego editables).
+    const withHqDefaults = await this.applyHqDefaults(data);
+
+    const store = await this.storesRepo.create(withHqDefaults);
 
     await this.auditUseCase
       .record({
@@ -53,6 +62,33 @@ export class StoresUseCase implements IStoresUseCase {
       .catch((err) => this.logger.warn(`Audit error on STORE_CREATED: ${err.message}`));
 
     return store;
+  }
+
+  /** Campos de la empresa que se heredan de la casa matriz (tienda 000). */
+  private readonly HQ_INHERITED_FIELDS: (keyof import('../../domain/ports/stores-repository.interface').StoreEntity)[] = [
+    'titulo', 'RTN', 'address', 'logoUrl', 'moduleCustomers', 'printCreditInvoices',
+    'SyncMinutes', 'PresentationMinutes', 'emisor', 'moneda', 'codigoMoneda',
+    'telefono', 'correo',
+  ];
+
+  /** Si existe la casa matriz (000), rellena los campos comunes que vengan vacíos. */
+  private async applyHqDefaults(data: any): Promise<any> {
+    const out = { ...(data ?? {}) };
+    try {
+      const hq = await this.storesRepo.findByCode('000');
+      if (!hq) return out;
+      for (const field of this.HQ_INHERITED_FIELDS) {
+        const value = out[field];
+        const hqValue = (hq as any)?.[field];
+        // solo copiar si el payload no trae valor y la casa matriz sí tiene
+        if ((value === undefined || value === null || value === '') && hqValue !== undefined && hqValue !== null) {
+          (out as any)[field] = hqValue;
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`applyHqDefaults fallo: ${(err as Error).message}`);
+    }
+    return out;
   }
 
   findOne(id: string) {

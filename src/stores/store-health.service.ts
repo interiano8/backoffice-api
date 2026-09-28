@@ -144,7 +144,8 @@ export class StoreHealthService {
 
   async checkAllStoresHealth(): Promise<StoreHealthInfo[]> {
     const stores = await this.prisma.boStore.findMany({
-      where: { isActive: true },
+      // La casa matriz (000) es fuente de configuración, no una estación operativa.
+      where: { isActive: true, code: { not: '000' } },
       orderBy: { code: 'asc' },
     });
 
@@ -158,7 +159,8 @@ export class StoreHealthService {
 
   async getHealthSummary(): Promise<StoreHealthInfo[]> {
     const stores = await this.prisma.boStore.findMany({
-      where: { isActive: true },
+      // La casa matriz (000) no se monitorea como estación.
+      where: { isActive: true, code: { not: '000' } },
       orderBy: { code: 'asc' },
     });
 

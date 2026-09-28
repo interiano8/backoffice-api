@@ -23,5 +23,10 @@ if [ -f "scripts/seed-initial-store.mjs" ]; then
   node scripts/seed-initial-store.mjs || true
 fi
 
+if [ -f "scripts/seed-hq-store.mjs" ]; then
+  echo "[Matriz Hub] Verificando casa matriz (000) y herencia de configuración..."
+  node scripts/seed-hq-store.mjs || true
+fi
+
 echo "[Matriz Hub] Arrancando servicio en puerto ${PORT:-3089}..."
 exec node dist/main.js
