@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Inject,
+  BadRequestException,
 } from '@nestjs/common';
 import type { IUsersUseCase, CreateUserData, UpdateUserData } from './domain/ports/in/users.use-case.port';
 import { USERS_USE_CASE } from './users.tokens';
@@ -32,6 +33,9 @@ export class UsersController {
 
   @Post()
   create(@Body() data: CreateUserData) {
+    if (!data.email || !data.email.trim()) {
+      throw new BadRequestException('El correo electrónico es obligatorio.');
+    }
     return this.usersUseCase.create(data);
   }
 

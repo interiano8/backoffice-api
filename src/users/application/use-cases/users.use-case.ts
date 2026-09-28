@@ -43,10 +43,38 @@ export class UsersUseCase implements IUsersUseCase {
   }
 
   async create(data: CreateUserData): Promise<UserEntity> {
-    if (!data.username || !data.password || !data.name) {
+    const username = data.username?.trim();
+    const name = data.name?.trim();
+    const email = data.email?.trim();
+    const password = data.password;
+
+    if (!username || !password || !name) {
       throw new ValidationException('Username, password, and name are required.');
     }
-    return this.userRepo.create(data);
+    if (!email) {
+      throw new ValidationException('Email is required.');
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new ValidationException('Invalid email format.');
+    }
+
+    const existingUser = await this.userRepo.findByUsername(username);
+    if (existingUser) {
+      throw new ValidationException(`Username "${username}" already exists.`);
+    }
+
+    const existingEmail = await this.userRepo.findByEmail(email);
+    if (existingEmail) {
+      throw new ValidationException(`Email "${email}" is already in use.`);
+    }
+
+    return this.userRepo.create({
+      ...data,
+      username,
+      name,
+      email,
+    });
   }
 
   async update(id: string, data: UpdateUserData): Promise<UserEntity> {
@@ -54,6 +82,31 @@ export class UsersUseCase implements IUsersUseCase {
     if (!existing) {
       throw new EntityNotFoundException('User', id);
     }
+
+    if (data.email !== undefined) {
+      const email = data.email?.trim();
+      if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          throw new ValidationException('Invalid email format.');
+        }
+        const duplicateEmail = await this.userRepo.findByEmail(email);
+        if (duplicateEmail && duplicateEmail.id !== id) {
+          throw new ValidationException(`Email "${email}" is already in use.`);
+        }
+      }
+    }
+
+    if (data.username !== undefined) {
+      const username = data.username?.trim();
+      if (username) {
+        const duplicateUser = await this.userRepo.findByUsername(username);
+        if (duplicateUser && duplicateUser.id !== id) {
+          throw new ValidationException(`Username "${username}" already exists.`);
+        }
+      }
+    }
+
     return this.userRepo.update(id, data);
   }
 

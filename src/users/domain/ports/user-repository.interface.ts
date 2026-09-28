@@ -19,6 +19,7 @@ export interface UserRepository {
   findById(id: string): Promise<UserEntity | null>;
   findByUsername(username: string): Promise<UserEntity | null>;
   findByUsernameWithPassword(username: string): Promise<UserAuthEntity | null>;
+  findByEmail(email: string): Promise<UserEntity | null>;
   create(data: any): Promise<UserEntity>;
   update(id: string, data: any): Promise<UserEntity>;
   remove(id: string): Promise<void>;

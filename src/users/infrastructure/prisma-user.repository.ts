@@ -21,15 +21,33 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async findByUsername(username: string): Promise<UserEntity | null> {
-    const u = await this.prisma.user.findUnique({ where: { username } });
+    const cleanUsername = username?.trim() || '';
+    if (!cleanUsername) return null;
+    const u = await this.prisma.user.findFirst({
+      where: { username: { equals: cleanUsername, mode: 'insensitive' } },
+    });
     if (!u) return null;
     return { id: u.id, username: u.username, name: u.name, email: u.email || undefined, role: u.role, isActive: u.isActive };
   }
 
   async findByUsernameWithPassword(username: string): Promise<UserAuthEntity | null> {
-    const u = await this.prisma.user.findUnique({ where: { username } });
+    const cleanUsername = username?.trim() || '';
+    if (!cleanUsername) return null;
+    const u = await this.prisma.user.findFirst({
+      where: { username: { equals: cleanUsername, mode: 'insensitive' } },
+    });
     if (!u) return null;
     return { id: u.id, username: u.username, name: u.name, email: u.email || undefined, role: u.role, isActive: u.isActive, password: u.password };
+  }
+
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    const cleanEmail = email?.trim() || '';
+    if (!cleanEmail) return null;
+    const u = await this.prisma.user.findFirst({
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+    });
+    if (!u) return null;
+    return { id: u.id, username: u.username, name: u.name, email: u.email || undefined, role: u.role, isActive: u.isActive };
   }
 
   async create(data: any): Promise<UserEntity> {

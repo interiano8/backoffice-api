@@ -44,6 +44,7 @@ export class TpvUserRepository implements UserRepository {
           id: u.id,
           username: u.username,
           name: u.name,
+          email: u.email || undefined,
           role: u.role,
           roles: userRoles.length > 0 ? userRoles : [u.role],
           isActive: u.isActive,
@@ -65,6 +66,7 @@ export class TpvUserRepository implements UserRepository {
           id: u.id,
           username: u.username,
           name: u.name,
+          email: u.email || undefined,
           role: u.role,
           roles: userRoles.length > 0 ? userRoles : [u.role],
           isActive: u.isActive,
@@ -90,6 +92,7 @@ export class TpvUserRepository implements UserRepository {
         id: local.id,
         username: local.username,
         name: local.name,
+        email: local.email || undefined,
         role: local.role,
         isActive: local.isActive,
       };
@@ -126,6 +129,7 @@ export class TpvUserRepository implements UserRepository {
         id: local.id,
         username: local.username,
         name: local.name,
+        email: local.email || undefined,
         role: local.role,
         isActive: local.isActive,
       };
@@ -162,6 +166,7 @@ export class TpvUserRepository implements UserRepository {
         id: local.id,
         username: local.username,
         name: local.name,
+        email: local.email || undefined,
         role: local.role,
         isActive: local.isActive,
         password: local.password,
@@ -191,6 +196,26 @@ export class TpvUserRepository implements UserRepository {
     }
   }
 
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    const cleanEmail = email?.trim() || '';
+    if (!cleanEmail) return null;
+
+    const local = await this.prisma.user.findFirst({
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+    });
+    if (local) {
+      return {
+        id: local.id,
+        username: local.username,
+        name: local.name,
+        email: local.email || undefined,
+        role: local.role,
+        isActive: local.isActive,
+      };
+    }
+    return null;
+  }
+
   async create(data: any): Promise<UserEntity> {
     let pool: any = null;
     try {
@@ -205,6 +230,7 @@ export class TpvUserRepository implements UserRepository {
         ? crypto.createHash('sha256').update(data.password).digest('hex')
         : '';
       const encryptedPin = pin ? encryptPin(pin) : null;
+      const email = data.email?.trim() || null;
 
       const exists = await pool.queryParams(
         'SELECT COUNT(*) AS cnt FROM empleados WHERE TRIM(usuario) ILIKE TRIM(@username)',
@@ -222,10 +248,24 @@ export class TpvUserRepository implements UserRepository {
       );
 
       const newId = res.recordset?.[0]?.NewId;
+
+      if (this.prisma?.user) {
+        try {
+          await this.prisma.user.upsert({
+            where: { username },
+            update: { name, email, role, isActive },
+            create: { username, name, email, password: passwordHash, role, isActive },
+          });
+        } catch (e: any) {
+          this.logger.warn(`Could not sync user to prisma.user: ${e.message}`);
+        }
+      }
+
       return {
         id: String(newId || username),
         username,
         name,
+        email: email || undefined,
         role,
         isActive,
         pin: pin || undefined,
@@ -277,6 +317,27 @@ export class TpvUserRepository implements UserRepository {
         params.passwordHash = data.password.startsWith('$scrypt$')
           ? data.password
           : crypto.createHash('sha256').update(data.password).digest('hex');
+      }
+
+      if (data.email !== undefined && this.prisma?.user) {
+        try {
+          const userRecord = await this.prisma.user.findFirst({
+            where: {
+              OR: [
+                { id: id?.trim() || '' },
+                { username: { equals: id?.trim() || '', mode: 'insensitive' } },
+              ],
+            },
+          });
+          if (userRecord) {
+            await this.prisma.user.update({
+              where: { id: userRecord.id },
+              data: { email: data.email?.trim() || null },
+            });
+          }
+        } catch (e: any) {
+          this.logger.warn(`Could not sync email to prisma.user: ${e.message}`);
+        }
       }
 
       if (setClauses.length === 0) {

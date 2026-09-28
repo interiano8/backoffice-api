@@ -4,7 +4,7 @@ export interface CreateUserData {
   username: string;
   password: string;
   name: string;
-  email?: string;
+  email: string;
   role?: string;
   pin?: string;
   codigoRfid?: string;
