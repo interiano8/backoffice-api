@@ -26,6 +26,8 @@ export interface CreateHoseData {
   tankId?: string | null;
   active?: boolean;
   unitOfMeasure?: string;
+  posCode?: string | null;
+  genericCode?: string | null;
 }
 
 export interface HoseRepository {

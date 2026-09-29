@@ -34,8 +34,22 @@ export class PrismaHoseRepository implements HoseRepository {
     }) as any;
   }
 
+  private inferGenericCode(gradeName: string, explicitCode?: string | null): string {
+    if (explicitCode && explicitCode.trim()) return explicitCode.trim().toUpperCase();
+    const norm = (gradeName || '').toUpperCase();
+    if (norm.includes('SUPER')) return 'SUPER';
+    if (norm.includes('REGULAR')) return 'REGULAR';
+    if (norm.includes('DIESEL')) return 'DIESEL';
+    if (norm.includes('KEROSENE') || norm.includes('QUEROSENO')) return 'KEROSENE';
+    if (norm.includes('GLP') || norm.includes('GAS')) return 'GLP';
+    return norm.slice(0, 10) || 'COMBUSTIBLE';
+  }
+
   async create(data: CreateHoseData): Promise<HoseEntity> {
     const gradeId = data.gradeId ?? this.inferGradeId(data.gradeName);
+    const genericCode = this.inferGenericCode(data.gradeName, data.genericCode || data.posCode);
+    const posCode = data.posCode ? data.posCode.trim().toUpperCase() : genericCode;
+
     return this.prisma.boHose.upsert({
       where: {
         storeCode_pumpId_hoseId: {
@@ -54,6 +68,8 @@ export class PrismaHoseRepository implements HoseRepository {
         tankId: data.tankId || null,
         active: data.active ?? true,
         unitOfMeasure: data.unitOfMeasure || 'GAL',
+        posCode,
+        genericCode,
       },
       update: {
         gradeId,
@@ -61,6 +77,8 @@ export class PrismaHoseRepository implements HoseRepository {
         unitPrice: data.unitPrice !== undefined ? data.unitPrice : undefined,
         tankId: data.tankId !== undefined ? data.tankId : undefined,
         active: data.active !== undefined ? data.active : true,
+        posCode,
+        genericCode,
       },
     }) as any;
   }
@@ -70,6 +88,14 @@ export class PrismaHoseRepository implements HoseRepository {
     if (updateData.gradeName && !updateData.gradeId) {
       updateData.gradeId = this.inferGradeId(updateData.gradeName);
       updateData.gradeName = updateData.gradeName.trim();
+    }
+    if (updateData.genericCode !== undefined || updateData.posCode !== undefined || updateData.gradeName) {
+      const code = this.inferGenericCode(
+        updateData.gradeName || '',
+        updateData.genericCode || updateData.posCode,
+      );
+      if (updateData.genericCode !== undefined) updateData.genericCode = updateData.genericCode ? updateData.genericCode.trim().toUpperCase() : code;
+      if (updateData.posCode !== undefined) updateData.posCode = updateData.posCode ? updateData.posCode.trim().toUpperCase() : code;
     }
     if (updateData.pumpId !== undefined) updateData.pumpId = Number(updateData.pumpId);
     if (updateData.hoseId !== undefined) updateData.hoseId = Number(updateData.hoseId);
