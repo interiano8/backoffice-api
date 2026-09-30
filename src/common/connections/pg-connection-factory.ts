@@ -82,6 +82,12 @@ export class PgConnectionFactory implements IConnectionFactory, OnModuleDestroy 
     return new PgExecutor(pool);
   }
 
+  async getTpvTransaction(storeCode: string): Promise<DbExecutor> {
+    const pool = await this.getPoolForStore(storeCode);
+    const client = await pool.connect();
+    return new PgExecutor(client, true);
+  }
+
   async getFusionConnection(storeCode: string): Promise<DbExecutor> {
     const pool = await this.getPoolForStore(storeCode);
     return new PgExecutor(pool);

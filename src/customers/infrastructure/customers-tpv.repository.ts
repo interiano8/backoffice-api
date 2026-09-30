@@ -271,7 +271,7 @@ export class CustomersTpvRepository implements CustomerRepository {
   async createCustomer(
     storeCode: string,
     data: {
-      customerNo: string;
+      customerNo?: string;
       customerName: string;
       rtn?: string;
       billingType: number;
@@ -281,13 +281,40 @@ export class CustomersTpvRepository implements CustomerRepository {
   ) {
     let tpvPool: any | null = null;
     try {
-      tpvPool = await this.getTpvConnection(storeCode);
-      const existing = await tpvPool.queryParams(
-        `SELECT codigo FROM clientes WHERE codigo = @customerNo`,
-        { customerNo: data.customerNo },
-      );
-      if (existing.recordset.length > 0) {
-        throw new Error(`El código de cliente ${data.customerNo} ya existe.`);
+      tpvPool = await this.getTpvTransaction(storeCode);
+      await tpvPool.queryParams('BEGIN');
+
+      const billingTypeNum = Number(data.billingType) === 0 ? 0 : 1;
+      const prefix = billingTypeNum === 0 ? 'CC-' : 'CCO-';
+
+      let assignedCustomerNo = data.customerNo?.trim();
+
+      if (!assignedCustomerNo) {
+        const result = await tpvPool.queryParams(
+          `SELECT codigo FROM clientes WHERE codigo ILIKE @searchPrefix`,
+          { searchPrefix: `${prefix}%` },
+        );
+
+        let maxNum = 0;
+        for (const row of result.recordset) {
+          const codeStr = row.codigo?.trim() || '';
+          if (codeStr.startsWith(prefix)) {
+            const numPart = codeStr.substring(prefix.length);
+            const parsed = parseInt(numPart, 10);
+            if (!isNaN(parsed) && parsed > maxNum) {
+              maxNum = parsed;
+            }
+          }
+        }
+        assignedCustomerNo = `${prefix}${String(maxNum + 1).padStart(5, '0')}`;
+      } else {
+        const existing = await tpvPool.queryParams(
+          `SELECT codigo FROM clientes WHERE codigo = @customerNo`,
+          { customerNo: assignedCustomerNo },
+        );
+        if (existing.recordset.length > 0) {
+          throw new Error(`El código de cliente ${assignedCustomerNo} ya existe.`);
+        }
       }
 
       await tpvPool.queryParams(
@@ -296,28 +323,30 @@ export class CustomersTpvRepository implements CustomerRepository {
         VALUES (@customerNo, @customerName, @rtn, @billingType, @creditLimit, @notes, false)
         `,
         {
-          customerNo: data.customerNo,
+          customerNo: assignedCustomerNo,
           customerName: data.customerName,
           rtn: data.rtn || '',
-          billingType: Number(data.billingType) ?? 1,
+          billingType: billingTypeNum,
           creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
           notes: data.notes || '',
         },
       );
 
+      await tpvPool.queryParams('COMMIT');
+
       await this.auditUseCase.record({
         action: 'CUSTOMER_CREATED',
         entity: 'Customer',
-        entityId: data.customerNo,
+        entityId: assignedCustomerNo,
         storeCode,
       });
 
       const newCustomer: CustomerData = {
-        customerNo: data.customerNo,
+        customerNo: assignedCustomerNo,
         customerName: data.customerName,
         rtn: data.rtn || '',
-        billingType: Number(data.billingType),
-        billingTypeLabel: Number(data.billingType) === 0 ? 'Credito' : 'Contado',
+        billingType: billingTypeNum,
+        billingTypeLabel: billingTypeNum === 0 ? 'Credito' : 'Contado',
         blocked: false,
         creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
         notes: data.notes || '',
@@ -326,10 +355,13 @@ export class CustomersTpvRepository implements CustomerRepository {
       return {
         success: true,
         message: 'Cliente creado exitosamente',
-        customerNo: data.customerNo,
+        customerNo: assignedCustomerNo,
         customer: newCustomer,
       };
     } catch (error: any) {
+      if (tpvPool) {
+        try { await tpvPool.queryParams('ROLLBACK'); } catch {}
+      }
       this.logger.error(
         `Error creating customer: ${error.message}`,
         error.stack,
@@ -341,6 +373,13 @@ export class CustomersTpvRepository implements CustomerRepository {
   }
 
   private getTpvConnection(storeCode: string) {
+    return this.connectionFactory.getTpvConnection(storeCode);
+  }
+
+  private getTpvTransaction(storeCode: string) {
+    if (this.connectionFactory.getTpvTransaction) {
+      return this.connectionFactory.getTpvTransaction(storeCode);
+    }
     return this.connectionFactory.getTpvConnection(storeCode);
   }
 }
