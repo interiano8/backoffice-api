@@ -25,7 +25,9 @@ describe('CustomersUseCase', () => {
     mockRepo = {
       getCustomers: jest.fn().mockResolvedValue({ data: [mockCustomer], total: 1, page: 1, limit: 10 }),
       getCustomer: jest.fn().mockResolvedValue(mockCustomer),
+      getNextCustomerCode: jest.fn().mockResolvedValue('CUST-002'),
       updateCustomer: jest.fn().mockResolvedValue({ success: true, message: 'Updated' }),
+      createCustomer: jest.fn().mockResolvedValue({ success: true, message: 'Created', customerNo: 'CUST-002' }),
       toggleCustomerStatus: jest.fn().mockResolvedValue({ success: true, message: 'Status toggled', blocked: true }),
     };
     useCase = new CustomersUseCase(mockRepo);

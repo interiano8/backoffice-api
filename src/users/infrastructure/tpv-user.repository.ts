@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { encryptPin } from '../../common/utils/pin-crypto';
 import type { IConnectionFactory } from '../../common/connections/connection-factory.interface';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -227,7 +228,7 @@ export class TpvUserRepository implements UserRepository {
       const isActive = data.isActive !== undefined ? Boolean(data.isActive) : true;
       const codigoRfid = data.codigoRfid?.trim() || null;
       const passwordHash = data.password
-        ? crypto.createHash('sha256').update(data.password).digest('hex')
+        ? await bcrypt.hash(data.password, 10)
         : '';
       const encryptedPin = pin ? encryptPin(pin) : null;
       const email = data.email?.trim() || null;
@@ -314,9 +315,7 @@ export class TpvUserRepository implements UserRepository {
       }
       if (data.password !== undefined && data.password !== '') {
         setClauses.push('hash_contrasena = @passwordHash');
-        params.passwordHash = data.password.startsWith('$scrypt$')
-          ? data.password
-          : crypto.createHash('sha256').update(data.password).digest('hex');
+        params.passwordHash = await bcrypt.hash(data.password, 10);
       }
 
       if (this.prisma?.user) {

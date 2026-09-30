@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Headers,
+  Param,
   BadRequestException,
   Body,
   UseGuards,
@@ -33,13 +34,15 @@ export class EtlController {
     return this.etlUseCase.getHoseConfiguration(storeCode);
   }
 
-  @Post('sync')
+  @Post(['sync', 'sync/:storeCode'])
   async triggerSync(
-    @Headers('x-store-code') storeCode: string,
+    @Headers('x-store-code') storeCodeHeader?: string,
+    @Param('storeCode') storeCodeParam?: string,
     @Body() body?: { reconcilerShiftId?: string; reconcilerShiftIds?: string[] },
   ) {
+    const storeCode = storeCodeParam || storeCodeHeader;
     if (!storeCode)
-      throw new BadRequestException('Store Code header is required');
+      throw new BadRequestException('Store Code header or path parameter is required');
 
     if (body?.reconcilerShiftIds && body.reconcilerShiftIds.length > 0) {
       return this.etlUseCase.syncMultipleShifts(
