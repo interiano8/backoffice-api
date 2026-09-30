@@ -6,7 +6,7 @@ import type { UserRepository, UserEntity, UserAuthEntity } from '../domain/ports
 export class PrismaUserRepository implements UserRepository {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<UserEntity[]> {
+  async findAll(_storeCode?: string): Promise<UserEntity[]> {
     const users = await this.prisma.user.findMany();
     return users.map(u => ({
       id: u.id, username: u.username, name: u.name,

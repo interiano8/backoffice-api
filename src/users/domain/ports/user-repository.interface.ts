@@ -15,7 +15,7 @@ export interface UserAuthEntity extends UserEntity {
 }
 
 export interface UserRepository {
-  findAll(): Promise<UserEntity[]>;
+  findAll(storeCode?: string): Promise<UserEntity[]>;
   findById(id: string): Promise<UserEntity | null>;
   findByUsername(username: string): Promise<UserEntity | null>;
   findByUsernameWithPassword(username: string): Promise<UserAuthEntity | null>;

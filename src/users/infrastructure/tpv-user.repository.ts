@@ -25,7 +25,7 @@ export class TpvUserRepository implements UserRepository {
     return this.connectionFactory.getTpvConnection('DEFAULT');
   }
 
-  async findAll(): Promise<UserEntity[]> {
+  async findAll(_storeCode?: string): Promise<UserEntity[]> {
     let pool: any = null;
     try {
       pool = await this.getPool();

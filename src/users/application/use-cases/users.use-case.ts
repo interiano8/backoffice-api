@@ -22,8 +22,8 @@ export class UsersUseCase implements IUsersUseCase {
     @Optional() private readonly syncService?: SyncService,
   ) {}
 
-  async findAll(): Promise<UserEntity[]> {
-    return this.userRepo.findAll();
+  async findAll(storeCode?: string): Promise<UserEntity[]> {
+    return this.userRepo.findAll(storeCode);
   }
 
   async findById(id: string): Promise<UserEntity | null> {

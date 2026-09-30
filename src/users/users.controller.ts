@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   Patch,
   Delete,
   UseGuards,
@@ -22,8 +23,8 @@ export class UsersController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.usersUseCase.findAll();
+  findAll(@Query('storeCode') storeCode?: string) {
+    return this.usersUseCase.findAll(storeCode);
   }
 
   @Get(':id')
