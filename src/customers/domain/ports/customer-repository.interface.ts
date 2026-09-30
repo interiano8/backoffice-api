@@ -43,6 +43,15 @@ export interface CustomerRepository {
     customerNo: string,
     data: UpdateCustomerData,
   ): Promise<{ success: boolean; message: string }>;
+  createCustomer(
+    storeCode: string,
+    data: {
+      customerNo: string;
+      customerName: string;
+      rtn?: string;
+      billingType: number;
+    },
+  ): Promise<{ success: boolean; message: string; customerNo: string }>;
   toggleCustomerStatus(
     storeCode: string,
     customerNo: string,

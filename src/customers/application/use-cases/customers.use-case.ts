@@ -53,6 +53,25 @@ export class CustomersUseCase implements ICustomersUseCase {
     }
   }
 
+  async createCustomer(
+    storeCode: string,
+    data: {
+      customerNo: string;
+      customerName: string;
+      rtn?: string;
+      billingType: number;
+    },
+  ) {
+    try {
+      return await this.customerRepo.createCustomer(storeCode, data);
+    } catch (error: any) {
+      this.logger.error(`Error in createCustomer: ${error.message}`);
+      throw new ValidationException(
+        `Could not create customer: ${error.message}`,
+      );
+    }
+  }
+
   async toggleCustomerStatus(storeCode: string, customerNo: string) {
     try {
       return await this.customerRepo.toggleCustomerStatus(

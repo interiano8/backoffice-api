@@ -228,6 +228,62 @@ export class CustomersTpvRepository implements CustomerRepository {
     }
   }
 
+  async createCustomer(
+    storeCode: string,
+    data: {
+      customerNo: string;
+      customerName: string;
+      rtn?: string;
+      billingType: number;
+    },
+  ) {
+    let tpvPool: any | null = null;
+    try {
+      tpvPool = await this.getTpvConnection(storeCode);
+      const existing = await tpvPool.queryParams(
+        `SELECT codigo FROM clientes WHERE codigo = @customerNo`,
+        { customerNo: data.customerNo },
+      );
+      if (existing.recordset.length > 0) {
+        throw new Error(`El código de cliente ${data.customerNo} ya existe.`);
+      }
+
+      await tpvPool.queryParams(
+        `
+        INSERT INTO clientes (codigo, nombre, rtn, tipo_facturacion, bloqueado)
+        VALUES (@customerNo, @customerName, @rtn, @billingType, false)
+        `,
+        {
+          customerNo: data.customerNo,
+          customerName: data.customerName,
+          rtn: data.rtn || '',
+          billingType: data.billingType ?? 1,
+        },
+      );
+
+      await this.auditUseCase.record({
+        action: 'CUSTOMER_CREATED',
+        entity: 'Customer',
+        entityId: data.customerNo,
+        storeCode,
+      });
+
+      return {
+        success: true,
+        message: 'Cliente creado exitosamente',
+        customerNo: data.customerNo,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error creating customer: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    } finally {
+      if (tpvPool) await tpvPool.close();
+    }
+  }
+
   private getTpvConnection(storeCode: string) {
     return this.connectionFactory.getTpvConnection(storeCode);
   }

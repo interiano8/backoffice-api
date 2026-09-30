@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Query,
   Headers,
   BadRequestException,
@@ -46,6 +47,18 @@ export class CustomersController {
   ) {
     if (!storeCode) throw new BadRequestException('Store code is required');
     return this.customersUseCase.getCustomer(storeCode, customerNo);
+  }
+
+  @Post()
+  async createCustomer(
+    @Headers('x-store-code') storeCode: string,
+    @Body() data: any,
+  ) {
+    if (!storeCode) throw new BadRequestException('Store code is required');
+    if (!data.customerNo || !data.customerName) {
+      throw new BadRequestException('Código y nombre de cliente son requeridos');
+    }
+    return this.customersUseCase.createCustomer(storeCode, data);
   }
 
   @Patch(':customerNo')
