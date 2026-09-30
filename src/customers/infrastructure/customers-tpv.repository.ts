@@ -102,7 +102,9 @@ export class CustomersTpvRepository implements CustomerRepository {
             bloqueado as "blocked",
             direccion as "address", 
             telefono as "phone", 
-            correo as "email"
+            correo as "email",
+            limite_credito as "creditLimit",
+            observaciones as "notes"
           FROM clientes WHERE codigo = @customerNo
         `,
         { customerNo },
@@ -119,10 +121,48 @@ export class CustomersTpvRepository implements CustomerRepository {
         address: row.address?.trim() || '',
         phone: row.phone?.trim() || '',
         email: row.email?.trim() || '',
+        creditLimit: row.creditLimit ? Number(row.creditLimit) : 0,
+        notes: row.notes?.trim() || '',
       };
     } catch (error: any) {
       this.logger.error(
         `Error fetching customer: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    } finally {
+      if (tpvPool) await tpvPool.close();
+    }
+  }
+
+  async getNextCustomerCode(storeCode: string, billingType: number) {
+    let tpvPool: any | null = null;
+    try {
+      tpvPool = await this.getTpvConnection(storeCode);
+      const prefix = Number(billingType) === 0 ? 'CC-' : 'CCO-';
+      const result = await tpvPool.queryParams(
+        `SELECT codigo FROM clientes WHERE codigo ILIKE @searchPrefix`,
+        { searchPrefix: `${prefix}%` },
+      );
+
+      let maxNum = 0;
+      for (const row of result.recordset) {
+        const codeStr = row.codigo?.trim() || '';
+        if (codeStr.startsWith(prefix)) {
+          const numPart = codeStr.substring(prefix.length);
+          const parsed = parseInt(numPart, 10);
+          if (!isNaN(parsed) && parsed > maxNum) {
+            maxNum = parsed;
+          }
+        }
+      }
+
+      const nextNum = maxNum + 1;
+      const customerNo = `${prefix}${String(nextNum).padStart(5, '0')}`;
+      return { customerNo };
+    } catch (error: any) {
+      this.logger.error(
+        `Error generating next customer code: ${error.message}`,
         error.stack,
       );
       throw error;
@@ -235,6 +275,8 @@ export class CustomersTpvRepository implements CustomerRepository {
       customerName: string;
       rtn?: string;
       billingType: number;
+      creditLimit?: number;
+      notes?: string;
     },
   ) {
     let tpvPool: any | null = null;
@@ -250,14 +292,16 @@ export class CustomersTpvRepository implements CustomerRepository {
 
       await tpvPool.queryParams(
         `
-        INSERT INTO clientes (codigo, nombre, rtn, tipo_facturacion, bloqueado)
-        VALUES (@customerNo, @customerName, @rtn, @billingType, false)
+        INSERT INTO clientes (codigo, nombre, rtn, tipo_facturacion, limite_credito, observaciones, bloqueado)
+        VALUES (@customerNo, @customerName, @rtn, @billingType, @creditLimit, @notes, false)
         `,
         {
           customerNo: data.customerNo,
           customerName: data.customerName,
           rtn: data.rtn || '',
-          billingType: data.billingType ?? 1,
+          billingType: Number(data.billingType) ?? 1,
+          creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
+          notes: data.notes || '',
         },
       );
 
@@ -268,10 +312,22 @@ export class CustomersTpvRepository implements CustomerRepository {
         storeCode,
       });
 
+      const newCustomer: CustomerData = {
+        customerNo: data.customerNo,
+        customerName: data.customerName,
+        rtn: data.rtn || '',
+        billingType: Number(data.billingType),
+        billingTypeLabel: Number(data.billingType) === 0 ? 'Credito' : 'Contado',
+        blocked: false,
+        creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
+        notes: data.notes || '',
+      };
+
       return {
         success: true,
         message: 'Cliente creado exitosamente',
         customerNo: data.customerNo,
+        customer: newCustomer,
       };
     } catch (error: any) {
       this.logger.error(

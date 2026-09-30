@@ -34,6 +34,15 @@ export class CustomersUseCase implements ICustomersUseCase {
     return customer;
   }
 
+  async getNextCustomerCode(storeCode: string, billingType: number) {
+    try {
+      return await this.customerRepo.getNextCustomerCode(storeCode, billingType);
+    } catch (error: any) {
+      this.logger.error(`Error in getNextCustomerCode: ${error.message}`);
+      throw new ValidationException(`Could not generate next customer code: ${error.message}`);
+    }
+  }
+
   async updateCustomer(
     storeCode: string,
     customerNo: string,
@@ -60,6 +69,8 @@ export class CustomersUseCase implements ICustomersUseCase {
       customerName: string;
       rtn?: string;
       billingType: number;
+      creditLimit?: number;
+      notes?: string;
     },
   ) {
     try {

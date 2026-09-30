@@ -8,6 +8,8 @@ export interface CustomerData {
   address?: string;
   phone?: string;
   email?: string;
+  creditLimit?: number;
+  notes?: string;
 }
 
 export interface CustomerOptions {
@@ -38,6 +40,10 @@ export interface CustomerRepository {
     storeCode: string,
     customerNo: string,
   ): Promise<CustomerData | null>;
+  getNextCustomerCode(
+    storeCode: string,
+    billingType: number,
+  ): Promise<{ customerNo: string }>;
   updateCustomer(
     storeCode: string,
     customerNo: string,
@@ -50,8 +56,10 @@ export interface CustomerRepository {
       customerName: string;
       rtn?: string;
       billingType: number;
+      creditLimit?: number;
+      notes?: string;
     },
-  ): Promise<{ success: boolean; message: string; customerNo: string }>;
+  ): Promise<{ success: boolean; message: string; customerNo: string; customer?: CustomerData }>;
   toggleCustomerStatus(
     storeCode: string,
     customerNo: string,

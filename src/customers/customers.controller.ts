@@ -31,8 +31,8 @@ export class CustomersController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    if (!storeCode) throw new BadRequestException('Store code is required');
-    return this.customersUseCase.getCustomers(storeCode, {
+    const targetStore = storeCode || 'GLOBAL';
+    return this.customersUseCase.getCustomers(targetStore, {
       search: search || '',
       billingType,
       page: page ? parseInt(page, 10) : 1,
@@ -40,13 +40,23 @@ export class CustomersController {
     });
   }
 
+  @Get('next-code')
+  async getNextCustomerCode(
+    @Headers('x-store-code') storeCode: string,
+    @Query('billingType') billingType?: string,
+  ) {
+    const targetStore = storeCode || 'GLOBAL';
+    const type = billingType !== undefined ? parseInt(billingType, 10) : 1;
+    return this.customersUseCase.getNextCustomerCode(targetStore, type);
+  }
+
   @Get(':customerNo')
   async getCustomer(
     @Headers('x-store-code') storeCode: string,
     @Param('customerNo') customerNo: string,
   ) {
-    if (!storeCode) throw new BadRequestException('Store code is required');
-    return this.customersUseCase.getCustomer(storeCode, customerNo);
+    const targetStore = storeCode || 'GLOBAL';
+    return this.customersUseCase.getCustomer(targetStore, customerNo);
   }
 
   @Post()
@@ -54,11 +64,11 @@ export class CustomersController {
     @Headers('x-store-code') storeCode: string,
     @Body() data: any,
   ) {
-    if (!storeCode) throw new BadRequestException('Store code is required');
+    const targetStore = storeCode || 'GLOBAL';
     if (!data.customerNo || !data.customerName) {
       throw new BadRequestException('Código y nombre de cliente son requeridos');
     }
-    return this.customersUseCase.createCustomer(storeCode, data);
+    return this.customersUseCase.createCustomer(targetStore, data);
   }
 
   @Patch(':customerNo')
@@ -67,8 +77,8 @@ export class CustomersController {
     @Param('customerNo') customerNo: string,
     @Body() data: any,
   ) {
-    if (!storeCode) throw new BadRequestException('Store code is required');
-    return this.customersUseCase.updateCustomer(storeCode, customerNo, data);
+    const targetStore = storeCode || 'GLOBAL';
+    return this.customersUseCase.updateCustomer(targetStore, customerNo, data);
   }
 
   @Patch(':customerNo/toggle-status')
@@ -76,7 +86,7 @@ export class CustomersController {
     @Headers('x-store-code') storeCode: string,
     @Param('customerNo') customerNo: string,
   ) {
-    if (!storeCode) throw new BadRequestException('Store code is required');
-    return this.customersUseCase.toggleCustomerStatus(storeCode, customerNo);
+    const targetStore = storeCode || 'GLOBAL';
+    return this.customersUseCase.toggleCustomerStatus(targetStore, customerNo);
   }
 }

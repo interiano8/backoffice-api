@@ -13,6 +13,11 @@ export interface ICustomersUseCase {
 
   getCustomer(storeCode: string, customerNo: string): Promise<CustomerData>;
 
+  getNextCustomerCode(
+    storeCode: string,
+    billingType: number,
+  ): Promise<{ customerNo: string }>;
+
   updateCustomer(
     storeCode: string,
     customerNo: string,
@@ -26,8 +31,10 @@ export interface ICustomersUseCase {
       customerName: string;
       rtn?: string;
       billingType: number;
+      creditLimit?: number;
+      notes?: string;
     },
-  ): Promise<{ success: boolean; message: string; customerNo: string }>;
+  ): Promise<{ success: boolean; message: string; customerNo: string; customer?: CustomerData }>;
 
   toggleCustomerStatus(
     storeCode: string,
