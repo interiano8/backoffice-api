@@ -92,6 +92,7 @@ export class CustomersTpvRepository implements CustomerRepository {
     let tpvPool: any | null = null;
     try {
       tpvPool = await this.getTpvConnection(storeCode);
+      await this.ensureColumnsExist(tpvPool);
       const result = await tpvPool.queryParams(
         `
           SELECT 
@@ -282,6 +283,7 @@ export class CustomersTpvRepository implements CustomerRepository {
     let tpvPool: any | null = null;
     try {
       tpvPool = await this.getTpvTransaction(storeCode);
+      await this.ensureColumnsExist(tpvPool);
       await tpvPool.queryParams('BEGIN');
 
       const billingTypeNum = Number(data.billingType) === 0 ? 0 : 1;
@@ -369,6 +371,21 @@ export class CustomersTpvRepository implements CustomerRepository {
       throw error;
     } finally {
       if (tpvPool) await tpvPool.close();
+    }
+  }
+
+  private async ensureColumnsExist(tpvPool: any) {
+    try {
+      await tpvPool.queryParams(
+        `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS limite_credito numeric DEFAULT 0`,
+      );
+      await tpvPool.queryParams(
+        `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS observaciones text`,
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `Could not ensure columns exist on clientes table: ${err.message}`,
+      );
     }
   }
 
