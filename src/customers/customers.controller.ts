@@ -65,10 +65,18 @@ export class CustomersController {
     @Body() data: any,
   ) {
     const targetStore = storeCode || 'GLOBAL';
-    if (!data.customerNo || !data.customerName) {
-      throw new BadRequestException('Código y nombre de cliente son requeridos');
+    if (!data.customerName || !data.customerName.trim()) {
+      throw new BadRequestException('El nombre de cliente es requerido');
     }
-    return this.customersUseCase.createCustomer(targetStore, data);
+    const payload = { ...data };
+    if (!payload.customerNo || !payload.customerNo.trim()) {
+      const nextCode = await this.customersUseCase.getNextCustomerCode(
+        targetStore,
+        payload.billingType !== undefined ? Number(payload.billingType) : 1,
+      );
+      payload.customerNo = nextCode.customerNo;
+    }
+    return this.customersUseCase.createCustomer(targetStore, payload);
   }
 
   @Patch(':customerNo')
