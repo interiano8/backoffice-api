@@ -21,14 +21,14 @@ export class TpvUserRepository implements UserRepository {
     private readonly prisma: PrismaService,
   ) {}
 
-  private async getPool(): Promise<any> {
-    return this.connectionFactory.getTpvConnection('DEFAULT');
+  private async getPool(storeCode?: string): Promise<any> {
+    return this.connectionFactory.getTpvConnection(storeCode || 'DEFAULT');
   }
 
-  async findAll(_storeCode?: string): Promise<UserEntity[]> {
+  async findAll(storeCode?: string): Promise<UserEntity[]> {
     let pool: any = null;
     try {
-      pool = await this.getPool();
+      pool = await this.getPool(storeCode);
       const res = await pool.query(this.fullSelect);
       const tpvUsers = (res.recordset || []).map((emp: any) => this.mapToEntity(emp));
       const localUsers = await this.prisma.user.findMany({
