@@ -27,33 +27,9 @@ export class TpvUserRepository implements UserRepository {
   }
 
   async findAll(storeCode?: string): Promise<UserEntity[]> {
-    let pool: any = null;
-    try {
-      pool = await this.getPool(storeCode);
-      const res = await pool.query(this.fullSelect);
-      const tpvUsers = (res.recordset || []).map((emp: any) => this.mapToEntity(emp));
-      const localUsers = await this.prisma.user.findMany({
-        include: {
-          userRoles: {
-            select: { roleId: true },
-          },
-        },
-      });
-      const localEntities: UserEntity[] = localUsers.map((u) => {
-        const userRoles = u.userRoles?.map((ur) => ur.roleId) || [];
-        return {
-          id: u.id,
-          username: u.username,
-          name: u.name,
-          email: u.email || undefined,
-          role: u.role,
-          roles: userRoles.length > 0 ? userRoles : [u.role],
-          isActive: u.isActive,
-        };
-      });
-      return [...localEntities, ...tpvUsers];
-    } catch (error: any) {
-      this.logger.error(`Error listing users: ${error.message}`);
+    const isGlobalMode = !storeCode || storeCode === 'GLOBAL' || storeCode === '000';
+
+    if (isGlobalMode) {
       const localUsers = await this.prisma.user.findMany({
         include: {
           userRoles: {
@@ -73,6 +49,16 @@ export class TpvUserRepository implements UserRepository {
           isActive: u.isActive,
         };
       });
+    }
+
+    let pool: any = null;
+    try {
+      pool = await this.getPool(storeCode);
+      const res = await pool.query(this.fullSelect);
+      return (res.recordset || []).map((emp: any) => this.mapToEntity(emp));
+    } catch (error: any) {
+      this.logger.error(`Error listing users for store ${storeCode}: ${error.message}`);
+      return [];
     } finally {
       if (pool) await pool.close();
     }
