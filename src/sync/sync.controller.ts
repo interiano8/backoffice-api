@@ -46,6 +46,15 @@ export class SyncController {
     return this.syncService.getMasters(storeCode, parsedVersion);
   }
 
+  @Post('up/customers')
+  async syncUpCustomers(
+    @Body() dto: { storeCode?: string; customers?: any[] },
+    @Headers('x-sync-key') syncKey?: string,
+  ) {
+    this.validateAuth(syncKey);
+    return this.syncService.syncUpCustomers(dto);
+  }
+
   @Get('down/config')
   async getStoreConfig(
     @Query('storeCode') storeCode: string,

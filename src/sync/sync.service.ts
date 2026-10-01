@@ -1,10 +1,14 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, Optional, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { SyncUpDto, SyncSaleDto, SyncShiftDto } from './dto/sync-up.dto';
-import type { SyncMastersResponseDto, SyncMasterUserDto } from './dto/sync-masters.dto';
+import type { SyncMastersResponseDto, SyncMasterUserDto, SyncMasterCustomerDto } from './dto/sync-masters.dto';
+import type { IConnectionFactory } from '../common/connections/connection-factory.interface';
 import { AlertConfigService } from '../alerts/alert-config.service';
 import { BrevoNotificationService } from '../alerts/brevo-notification.service';
 import { AlertTemplateBuilder } from '../alerts/alert-template.builder';
+
+/** Código de la casa matriz: fuente única del catálogo central de clientes. */
+const HQ_STORE_CODE = '000';
 
 @Injectable()
 export class SyncService {
@@ -12,6 +16,8 @@ export class SyncService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Inject('IConnectionFactory')
+    private readonly connectionFactory: IConnectionFactory,
     @Optional() private readonly alertConfigService?: AlertConfigService,
     @Optional() private readonly brevoService?: BrevoNotificationService,
   ) {}
@@ -609,16 +615,144 @@ export class SyncService {
       active: u.isActive,
     }));
 
+    // Consultar el catálogo central de clientes desde la casa matriz (000).
+    // La casa matriz es la única fuente para clientes de crédito; los de
+    // contado se toleran localmente pero también se publican para replicarlos.
+    const customers = await this.getCentralCustomers();
+
     return {
       masterVersion: currentVersion,
       generatedAt: now.toISOString(),
       hasUpdates: true,
-      customers: [], // Puede poblarse con catálogo centralizado
+      customers,
       fuelPrices,
       products: [],
       discountRules: [],
       users,
     };
+  }
+
+  /**
+   * Lee el catálogo de clientes de la casa matriz (000) vía su pool TPV y lo
+   * mapea al DTO de maestros. Si la tienda 000 no tiene clientes o no es
+   * accesible, devuelve [] (no rompe el resto de maestros).
+   */
+  private async getCentralCustomers(): Promise<SyncMasterCustomerDto[]> {
+    let tpv: any | null = null;
+    try {
+      tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      const result = await tpv.query(`
+        SELECT codigo, nombre, rtn, telefono, correo, direccion,
+               tipo_facturacion, bloqueado, saldo
+        FROM clientes
+        ORDER BY codigo
+      `);
+      const rows = (result?.recordset || []) as any[];
+      return rows.map((row: any) => ({
+        customerNo: String(row.codigo || '').trim(),
+        customerName: String(row.nombre || row.codigo || '').trim(),
+        rtn: row.rtn ? String(row.rtn).trim() : null,
+        phone: row.telefono ? String(row.telefono).trim() : null,
+        email: row.correo ? String(row.correo).trim() : null,
+        address: row.direccion ? String(row.direccion).trim() : null,
+        billingType: Number(row.tipo_facturacion) === 0 ? 0 : 1,
+        blocked: row.bloqueado === true || row.bloqueado === 1,
+        creditLimit: row.limite_credito != null ? Number(row.limite_credito) : null,
+        balance: row.saldo != null ? Number(row.saldo) : null,
+      }));
+    } catch (error: any) {
+      this.logger.warn(
+        `No se pudo cargar el catálogo central de clientes (tienda ${HQ_STORE_CODE}): ${error.message}`,
+      );
+      return [];
+    } finally {
+      if (tpv) await tpv.close().catch(() => undefined);
+    }
+  }
+
+  /**
+   * Replica clientes de CONTADO creados localmente en un POS hacia la casa
+   * matriz (000). Solo se aceptan clientes de contado (billingType = 1): los
+   * intentos de crédito desde el POS se ignoran (el crédito vive solo en la
+   * matriz). El upsert es por codigo y respeta el código original CCO-{tienda}-{6}.
+   */
+  async syncUpCustomers(dto: {
+    storeCode?: string;
+    customers?: Array<{
+      customerNo: string;
+      customerName: string;
+      rtn?: string | null;
+      phone?: string | null;
+      email?: string | null;
+      address?: string | null;
+      billingType?: number;
+      blocked?: boolean;
+    }>;
+  }) {
+    const storeCode = (dto.storeCode || '').trim();
+    if (!storeCode) {
+      throw new BadRequestException('El código de tienda (storeCode) es obligatorio.');
+    }
+    const incoming = Array.isArray(dto.customers) ? dto.customers : [];
+    // Solo contado: el POS no puede registrar clientes de crédito.
+    const cashCustomers = incoming.filter((c) => Number(c.billingType) !== 0);
+
+    let tpv: any | null = null;
+    let inserted = 0;
+    try {
+      tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      for (const cust of cashCustomers) {
+        const customerNo = String(cust.customerNo || '').trim();
+        if (!customerNo) continue;
+        const existing = await tpv.queryParams(
+          `SELECT codigo FROM clientes WHERE codigo = @customerNo`,
+          { customerNo },
+        );
+        if (existing.recordset.length > 0) {
+          // Ya está en el catálogo central: no duplicar, no pisar un crédito.
+          await tpv.queryParams(
+            `UPDATE clientes SET nombre = @name, fecha_actualizacion = now()
+             WHERE codigo = @customerNo AND (tipo_facturacion IS NULL OR tipo_facturacion <> 0)`,
+            {
+              customerNo,
+              name: String(cust.customerName || customerNo).trim(),
+            },
+          );
+        } else {
+          await tpv.queryParams(
+            `INSERT INTO clientes (codigo, nombre, rtn, telefono, correo, direccion, tipo_facturacion, bloqueado, fecha_actualizacion)
+             VALUES (@customerNo, @name, @rtn, @phone, @email, @address, 1, false, now())`,
+            {
+              customerNo,
+              name: String(cust.customerName || customerNo).trim(),
+              rtn: cust.rtn ? String(cust.rtn).trim() : '',
+              phone: cust.phone ? String(cust.phone).trim() : '',
+              email: cust.email ? String(cust.email).trim() : '',
+              address: cust.address ? String(cust.address).trim() : '',
+            },
+          );
+          inserted++;
+        }
+      }
+      this.logger.log(
+        `[SYNC UP] Tienda ${storeCode} envió ${cashCustomers.length} cliente(s) de contado; ${inserted} nuevos en casa matriz (000)`,
+      );
+      return {
+        success: true,
+        received: incoming.length,
+        accepted: cashCustomers.length,
+        inserted,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Error replicando clientes de contado de tienda ${storeCode} hacia 000: ${error.message}`,
+      );
+      throw new BadRequestException(
+        `Error replicando clientes de contado: ${error.message}`,
+      );
+    } finally {
+      if (tpv) await tpv.close().catch(() => undefined);
+    }
   }
 
   async ping(storeCode: string, queueCount?: number) {

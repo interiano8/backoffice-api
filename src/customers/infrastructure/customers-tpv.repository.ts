@@ -140,7 +140,11 @@ export class CustomersTpvRepository implements CustomerRepository {
     let tpvPool: any | null = null;
     try {
       tpvPool = await this.getTpvConnection(storeCode);
-      const prefix = Number(billingType) === 0 ? 'CC-' : 'CCO-';
+      // Nomenclatura unificada:
+      //  - Crédito:  CC-{5 dígitos} secuencial (se mantiene)
+      //  - Contado:  CCO-{tienda}-{6 dígitos} (la tienda evita colisiones entre sucursales)
+      const isCredit = Number(billingType) === 0;
+      const prefix = isCredit ? 'CC-' : `CCO-${storeCode.trim()}-`;
       const result = await tpvPool.queryParams(
         `SELECT codigo FROM clientes WHERE codigo ILIKE @searchPrefix`,
         { searchPrefix: `${prefix}%` },
@@ -158,8 +162,9 @@ export class CustomersTpvRepository implements CustomerRepository {
         }
       }
 
+      const digits = isCredit ? 5 : 6;
       const nextNum = maxNum + 1;
-      const customerNo = `${prefix}${String(nextNum).padStart(5, '0')}`;
+      const customerNo = `${prefix}${String(nextNum).padStart(digits, '0')}`;
       return { customerNo };
     } catch (error: any) {
       this.logger.error(
@@ -287,7 +292,8 @@ export class CustomersTpvRepository implements CustomerRepository {
       await tpvPool.queryParams('BEGIN');
 
       const billingTypeNum = Number(data.billingType) === 0 ? 0 : 1;
-      const prefix = billingTypeNum === 0 ? 'CC-' : 'CCO-';
+      const isCredit = billingTypeNum === 0;
+      const prefix = isCredit ? 'CC-' : `CCO-${storeCode.trim()}-`;
 
       let assignedCustomerNo = data.customerNo?.trim();
 
@@ -308,7 +314,8 @@ export class CustomersTpvRepository implements CustomerRepository {
             }
           }
         }
-        assignedCustomerNo = `${prefix}${String(maxNum + 1).padStart(5, '0')}`;
+        const digits = isCredit ? 5 : 6;
+        assignedCustomerNo = `${prefix}${String(maxNum + 1).padStart(digits, '0')}`;
       } else {
         const existing = await tpvPool.queryParams(
           `SELECT codigo FROM clientes WHERE codigo = @customerNo`,
