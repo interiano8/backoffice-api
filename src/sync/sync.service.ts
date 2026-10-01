@@ -795,6 +795,17 @@ export class SyncService {
       throw new NotFoundException(`Tienda con código '${cleanCode}' no encontrada en la Matriz.`);
     }
 
+    // El Consumidor Final es un parámetro CENTRAL: se configura una sola vez en
+    // la casa matriz (000) y se propaga a todas las tiendas. Si 000 no existe o
+    // no tiene valor, se cae al valor local de la tienda como respaldo.
+    const hq = await this.prisma.boStore.findUnique({
+      where: { code: HQ_STORE_CODE },
+      select: { noConsumidorFinal: true },
+    });
+    const centralNoConsumidorFinal = hq?.noConsumidorFinal?.trim()
+      ? hq.noConsumidorFinal.trim()
+      : store.noConsumidorFinal?.trim() || '';
+
     const hoses = await this.prisma.boHose.findMany({
       where: { storeCode: cleanCode, active: true },
       orderBy: [{ pumpId: 'asc' }, { hoseId: 'asc' }],
@@ -824,6 +835,7 @@ export class SyncService {
         logoUrl: store.logoUrl || null,
         variasLineasPermitidas: true,
         descuentosPermitidos: true,
+        noConsumidorFinal: centralNoConsumidorFinal || null,
       },
       configuracionPos: (store.posConfig as any) || {
         codigoPos: '01',

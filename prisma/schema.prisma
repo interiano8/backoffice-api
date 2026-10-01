@@ -150,6 +150,11 @@ model BoStore {
   // Configuracion POS (espejo de configuracion_pos del POS local)
   posConfig              Json?
 
+  // Cliente "Consumidor Final": código de un cliente de contado del catálogo
+  // central que se configura en la casa matriz (000) y se propaga a todas las
+  // tiendas vía down/config (noConsumidorFinal en el POS).
+  noConsumidorFinal      String?
+
   // Versionado monótono para bootstrap y sync downstream
   configVersion          Int       @default(1)
   configUpdatedAt        DateTime  @default(now()) @db.Timestamptz(6)
