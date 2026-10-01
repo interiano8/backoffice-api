@@ -40,10 +40,21 @@ export class EtlService implements IEtlUseCase {
 
     try {
       await this.syncTpv(store.code);
+      // Al sincronizar desde la Matriz, también se fuerza al POS de la tienda a
+      // bajar los MAESTROS (usuarios/empleados) desde /down/masters.
+      const posSync = await this.triggerPosMasterSync(store);
+      if (posSync && !posSync.success) {
+        this.logger.warn(
+          `[SYNC ${storeCode}] No se pudo forzar sync de maestros en POS: ${posSync.error}`,
+        );
+      }
       await this.auditUseCase.record({
         action: 'SYNC_COMPLETED',
         entity: 'ETL',
         storeCode,
+        metadata: posSync && posSync.success
+          ? 'ventas+maestros'
+          : 'ventas (maestros con aviso)',
       });
       return { success: true, message: 'Sync completed' };
     } catch (error: any) {
@@ -57,6 +68,36 @@ export class EtlService implements IEtlUseCase {
       return { success: false, error: error.message };
     } finally {
       await this.etlLock.releaseLock(lockKey);
+    }
+  }
+
+  /**
+   * Fuerza la bajada de maestros (usuarios/empleados) en el POS local de la
+   * tienda usando su endpoint /health/sync-now. No bloquea si el POS no responde.
+   */
+  private async triggerPosMasterSync(
+    store: { code?: string; apiUrl?: string },
+  ): Promise<{ success: boolean; error?: string } | null> {
+    const base = (store?.apiUrl || '').trim().replace(/\/+$/, '');
+    if (!base) {
+      this.logger.warn(`[SYNC ${store?.code}] Tienda sin apiUrl; omitir sync de maestros`);
+      return null;
+    }
+    const url = `${base}/health/sync-now`;
+    this.logger.log(`[SYNC ${store?.code}] Forzando maestros en POS: ${url}`);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) {
+        return { success: false, error: `POS respondió HTTP ${res.status}` };
+      }
+      const data = (await res.json()) as { success?: boolean; mastersUpdated?: boolean };
+      return { success: data?.success !== false, error: undefined };
+    } catch (error: any) {
+      return { success: false, error: error?.message || 'no se pudo contactar el POS' };
     }
   }
 
