@@ -16,8 +16,9 @@ export class SyncService {
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional()
     @Inject('IConnectionFactory')
-    private readonly connectionFactory: IConnectionFactory,
+    private readonly connectionFactory?: IConnectionFactory,
     @Optional() private readonly alertConfigService?: AlertConfigService,
     @Optional() private readonly brevoService?: BrevoNotificationService,
   ) {}
@@ -640,7 +641,9 @@ export class SyncService {
   private async getCentralCustomers(): Promise<SyncMasterCustomerDto[]> {
     let tpv: any | null = null;
     try {
-      tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      if (this.connectionFactory) {
+        tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      }
       const result = await tpv.query(`
         SELECT codigo, nombre, rtn, telefono, correo, direccion,
                tipo_facturacion, bloqueado, saldo
@@ -700,7 +703,9 @@ export class SyncService {
     let tpv: any | null = null;
     let inserted = 0;
     try {
-      tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      if (this.connectionFactory) {
+        tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      }
       for (const cust of cashCustomers) {
         const customerNo = String(cust.customerNo || '').trim();
         if (!customerNo) continue;
@@ -854,7 +859,7 @@ export class SyncService {
         declararMontosIniciales: true,
       },
       mangueras: hoses.map((h) => ({
-        idManguera: h.hoseId,
+        idManguera: h.pumpId * 10 + h.hoseId,
         idBomba: h.pumpId,
         idMangueraFisica: h.hosePhysicalId || h.hoseId,
         numeroGrado: h.gradeId,

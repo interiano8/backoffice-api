@@ -54,6 +54,10 @@ describe('SyncService & SyncController', () => {
           provide: PrismaService,
           useValue: prismaMock,
         },
+        {
+          provide: 'IConnectionFactory',
+          useValue: {},
+        },
       ],
     }).compile();
 
@@ -504,7 +508,7 @@ describe('SyncService & SyncController', () => {
         sendEmail: jest.fn().mockResolvedValue({ success: true }),
       };
 
-      serviceWithAlerts = new SyncService(prismaMock, alertConfigMock, brevoMock);
+      serviceWithAlerts = new SyncService(prismaMock, {} as any, alertConfigMock, brevoMock);
     });
 
     it('debe disparar alerta por correo si el descuadre supera o iguala el umbral configurado en BD', async () => {

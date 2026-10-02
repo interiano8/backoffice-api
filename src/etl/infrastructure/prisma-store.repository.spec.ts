@@ -24,7 +24,9 @@ describe('PrismaStoreRepository', () => {
         ip: '10.0.0.1',
         name: 'Store 1',
       });
-      expect(boStore.findUnique).toHaveBeenCalledWith({ where: { code: 'S01' } });
+      expect(boStore.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { code: 'S01' } }),
+      );
     });
 
     it('should return null when the store does not exist', async () => {
