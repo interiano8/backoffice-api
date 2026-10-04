@@ -105,6 +105,8 @@ export class CustomersTpvRepository implements CustomerRepository {
             telefono as "phone", 
             correo as "email",
             limite_credito as "creditLimit",
+            dias_credito as "creditDays",
+            bloqueo_mora as "blockOnOverdue",
             observaciones as "notes"
           FROM clientes WHERE codigo = @customerNo
         `,
@@ -123,6 +125,8 @@ export class CustomersTpvRepository implements CustomerRepository {
         phone: row.phone?.trim() || '',
         email: row.email?.trim() || '',
         creditLimit: row.creditLimit ? Number(row.creditLimit) : 0,
+        creditDays: row.creditDays != null ? Number(row.creditDays) : 30,
+        blockOnOverdue: row.blockOnOverdue ?? true,
         notes: row.notes?.trim() || '',
       };
     } catch (error: any) {
@@ -385,6 +389,12 @@ export class CustomersTpvRepository implements CustomerRepository {
     try {
       await tpvPool.queryParams(
         `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS limite_credito numeric DEFAULT 0`,
+      );
+      await tpvPool.queryParams(
+        `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS dias_credito integer DEFAULT 30`,
+      );
+      await tpvPool.queryParams(
+        `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS bloqueo_mora boolean DEFAULT true`,
       );
       await tpvPool.queryParams(
         `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS observaciones text`,

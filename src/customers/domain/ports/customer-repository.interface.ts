@@ -9,6 +9,8 @@ export interface CustomerData {
   phone?: string;
   email?: string;
   creditLimit?: number;
+  creditDays?: number;
+  blockOnOverdue?: boolean;
   notes?: string;
 }
 

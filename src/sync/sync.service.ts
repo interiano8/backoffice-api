@@ -645,7 +645,7 @@ export class SyncService {
       }
       const result = await tpv.query(`
         SELECT codigo, nombre, rtn, telefono, correo, direccion,
-               tipo_facturacion, bloqueado, saldo
+               tipo_facturacion, bloqueado, saldo, limite_credito, dias_credito, bloqueo_mora
         FROM clientes
         ORDER BY codigo
       `);
@@ -660,6 +660,8 @@ export class SyncService {
         billingType: Number(row.tipo_facturacion) === 0 ? 0 : 1,
         blocked: row.bloqueado === true || row.bloqueado === 1,
         creditLimit: row.limite_credito != null ? Number(row.limite_credito) : null,
+        creditDays: row.dias_credito != null ? Number(row.dias_credito) : 30,
+        blockOnOverdue: row.bloqueo_mora ?? true,
         balance: row.saldo != null ? Number(row.saldo) : null,
       }));
     } catch (error: any) {
