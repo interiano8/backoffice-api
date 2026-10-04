@@ -74,6 +74,7 @@ export class PrismaHoseRepository implements HoseRepository {
         gradeName: data.gradeName.trim(),
         tankId: data.tankId !== undefined ? data.tankId : undefined,
         active: data.active !== undefined ? data.active : true,
+        unitOfMeasure: data.unitOfMeasure !== undefined ? data.unitOfMeasure : undefined,
         posCode,
         genericCode,
       },
