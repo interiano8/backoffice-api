@@ -418,7 +418,7 @@ describe('SyncService & SyncController', () => {
       expect(result.hasUpdates).toBe(true);
       expect(result.fuelPrices).toHaveLength(1);
       expect(result.fuelPrices[0].gradeName).toBe('SUPER');
-      expect(result.fuelPrices[0].unitPrice).toBe(32.5);
+      expect(result.fuelPrices[0].unitPrice).toBe(0);
     });
 
     it('devuelve hasUpdates: false si la estación ya tiene la versión actual', async () => {
@@ -713,7 +713,6 @@ describe('SyncService & SyncController', () => {
       expect(config.configuracionPos.pantallaEnBomba).toBe(true);
       expect(config.mangueras).toHaveLength(2);
       expect(config.mangueras[0].nombreGrado).toBe('SUPER');
-      expect(config.mangueras[0].precioUnitario).toBe(32.5);
     });
 
     it('lanza BadRequestException si storeCode esta vacio', async () => {

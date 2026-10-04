@@ -210,7 +210,6 @@ model BoHose {
   hoseId         Int
   gradeId        Int
   gradeName      String
-  unitPrice      Decimal? @db.Decimal(18, 4)
   tankId         String?
   hosePhysicalId Int?
   posCode        String?

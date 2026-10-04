@@ -581,7 +581,6 @@ export class SyncService {
       select: {
         gradeId: true,
         gradeName: true,
-        unitPrice: true,
         updatedAt: true,
       },
     });
@@ -589,7 +588,7 @@ export class SyncService {
     const fuelPrices = hoses.map((h) => ({
       gradeId: h.gradeId,
       gradeName: h.gradeName,
-      unitPrice: Number(h.unitPrice) || 0,
+      unitPrice: 0,
       effectiveDate: h.updatedAt.toISOString(),
     }));
 
@@ -864,7 +863,6 @@ export class SyncService {
         idMangueraFisica: h.hosePhysicalId || h.hoseId,
         numeroGrado: h.gradeId,
         nombreGrado: h.gradeName,
-        precioUnitario: Number(h.unitPrice) || 0,
         idsTanques: h.tankId || null,
         pos: h.posCode || String(h.pumpId),
         codigoPos: h.genericCode || h.posCode || String(h.pumpId),

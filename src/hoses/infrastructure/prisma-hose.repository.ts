@@ -27,10 +27,9 @@ export class PrismaHoseRepository implements HoseRepository {
     }) as any;
   }
 
-  async updatePrice(id: string, unitPrice: number): Promise<HoseEntity> {
-    return this.prisma.boHose.update({
+  async updatePrice(id: string, _unitPrice: number): Promise<HoseEntity> {
+    return this.prisma.boHose.findFirst({
       where: { id },
-      data: { unitPrice },
     }) as any;
   }
 
@@ -64,7 +63,6 @@ export class PrismaHoseRepository implements HoseRepository {
         hoseId: Number(data.hoseId),
         gradeId,
         gradeName: data.gradeName.trim(),
-        unitPrice: data.unitPrice !== undefined ? data.unitPrice : null,
         tankId: data.tankId || null,
         active: data.active ?? true,
         unitOfMeasure: data.unitOfMeasure || 'GAL',
@@ -74,7 +72,6 @@ export class PrismaHoseRepository implements HoseRepository {
       update: {
         gradeId,
         gradeName: data.gradeName.trim(),
-        unitPrice: data.unitPrice !== undefined ? data.unitPrice : undefined,
         tankId: data.tankId !== undefined ? data.tankId : undefined,
         active: data.active !== undefined ? data.active : true,
         posCode,
