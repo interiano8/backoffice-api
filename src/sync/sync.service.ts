@@ -616,9 +616,50 @@ export class SyncService {
     }));
 
     // Consultar el catálogo central de clientes desde la casa matriz (000).
-    // La casa matriz es la única fuente para clientes de crédito; los de
-    // contado se toleran localmente pero también se publican para replicarlos.
     const customers = await this.getCentralCustomers();
+
+    // Consultar catálogo central de formas de pago y sus asignaciones por tienda
+    const allPaymentMethods = await this.prisma.boPaymentMethodCatalog.findMany({
+      include: { storeAssignments: true },
+      orderBy: { code: 'asc' },
+    });
+
+    const paymentMethods = allPaymentMethods.map((pm) => {
+      const isAssignedToStore = pm.storeAssignments.some(
+        (sa) => sa.storeCode === storeCode && sa.active,
+      );
+      return {
+        code: pm.code,
+        description: pm.description,
+        category: pm.category,
+        currency: pm.currency,
+        generatesChange: pm.generatesChange,
+        invoiceCash: pm.invoiceCash,
+        invoiceCredit: pm.invoiceCredit,
+        fuelOutflow: pm.fuelOutflow,
+        loyalty: pm.loyalty,
+        requiresReference: pm.requiresReference,
+        image: pm.image,
+        active: pm.active && isAssignedToStore,
+        accountId: pm.accountId,
+        commissionPct: pm.commissionPct ? Number(pm.commissionPct) : null,
+      };
+    });
+
+    // Consultar tasas de cambio activas
+    const dbExchangeRates = await this.prisma.boExchangeRate.findMany({
+      where: { active: true },
+      orderBy: { startDate: 'desc' },
+    });
+
+    const exchangeRates = dbExchangeRates.map((er) => ({
+      id: er.id,
+      currency: er.currency,
+      rate: Number(er.rate),
+      startDate: er.startDate.toISOString(),
+      endDate: er.endDate ? er.endDate.toISOString() : null,
+      active: er.active,
+    }));
 
     return {
       masterVersion: currentVersion,
@@ -629,6 +670,8 @@ export class SyncService {
       products: [],
       discountRules: [],
       users,
+      paymentMethods,
+      exchangeRates,
     };
   }
 

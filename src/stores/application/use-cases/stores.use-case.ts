@@ -68,7 +68,7 @@ export class StoresUseCase implements IStoresUseCase {
   private readonly HQ_INHERITED_FIELDS: (keyof import('../../domain/ports/stores-repository.interface').StoreEntity)[] = [
     'titulo', 'RTN', 'address', 'logoUrl', 'moduleCustomers', 'moduleAccounting', 'printCreditInvoices',
     'SyncMinutes', 'PresentationMinutes', 'emisor', 'moneda', 'codigoMoneda',
-    'telefono', 'correo',
+    'telefono', 'correo', 'validarSaldoCredito',
   ];
 
   /** Si existe la casa matriz (000), rellena los campos comunes que vengan vacíos. */

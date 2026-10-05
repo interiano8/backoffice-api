@@ -44,6 +44,12 @@ describe('SyncService & SyncController', () => {
       user: {
         findMany: jest.fn().mockResolvedValue([]),
       },
+      boPaymentMethodCatalog: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      boExchangeRate: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({

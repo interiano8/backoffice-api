@@ -56,6 +56,32 @@ export interface SyncMasterUserDto {
   active: boolean;
 }
 
+export interface SyncMasterPaymentMethodDto {
+  code: string;
+  description: string;
+  category: string;
+  currency: string;
+  generatesChange: boolean;
+  invoiceCash: boolean;
+  invoiceCredit: boolean;
+  fuelOutflow: boolean;
+  loyalty: boolean;
+  requiresReference: boolean;
+  image?: string | null;
+  active: boolean;
+  accountId?: string | null;
+  commissionPct?: number | null;
+}
+
+export interface SyncMasterExchangeRateDto {
+  id: string;
+  currency: string;
+  rate: number;
+  startDate: string;
+  endDate?: string | null;
+  active: boolean;
+}
+
 export interface SyncMastersResponseDto {
   masterVersion: number;
   generatedAt: string;
@@ -65,5 +91,7 @@ export interface SyncMastersResponseDto {
   products: SyncMasterProductDto[];
   discountRules?: SyncMasterDiscountRuleDto[];
   users: SyncMasterUserDto[];
+  paymentMethods?: SyncMasterPaymentMethodDto[];
+  exchangeRates?: SyncMasterExchangeRateDto[];
 }
 

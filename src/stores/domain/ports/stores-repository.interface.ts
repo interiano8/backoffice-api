@@ -30,6 +30,7 @@ export interface StoreEntity {
   codigoMoneda?: string | null;
   telefono?: string | null;
   correo?: string | null;
+  validarSaldoCredito?: boolean | null;
   posConfig?: any | null;
   configVersion?: number;
   configUpdatedAt?: Date;

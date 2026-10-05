@@ -23,6 +23,7 @@ import { AuditModule } from './audit/audit.module';
 import { SyncModule } from './sync/sync.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { AccountingModule } from './accounting/accounting.module';
+import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AccountingModule } from './accounting/accounting.module';
     SyncModule,
     AlertsModule,
     AccountingModule,
+    PaymentMethodsModule,
   ],
   controllers: [AppController],
   providers: [

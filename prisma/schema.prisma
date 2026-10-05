@@ -154,6 +154,7 @@ model BoStore {
   // central que se configura en la casa matriz (000) y se propaga a todas las
   // tiendas vía down/config (noConsumidorFinal en el POS).
   noConsumidorFinal      String?
+  validarSaldoCredito    Boolean?  @default(true)
 
   // Versionado monótono para bootstrap y sync downstream
   configVersion          Int       @default(1)
@@ -513,4 +514,51 @@ model JournalEntryLine {
   @@index([accountId])
   @@index([costCenterId])
   @@map("journal_entry_lines")
+}
+
+model BoPaymentMethodCatalog {
+  code              String                 @id
+  description       String
+  category          String                 @default("EFECTIVO")
+  currency          String                 @default("HNL")
+  generatesChange   Boolean                @default(false)
+  invoiceCash       Boolean                @default(false)
+  invoiceCredit     Boolean                @default(false)
+  fuelOutflow       Boolean                @default(false)
+  loyalty           Boolean                @default(false)
+  requiresReference Boolean                @default(false)
+  image             String?
+  active            Boolean                @default(true)
+  accountId         String?
+  commissionPct     Decimal?               @db.Decimal(5, 2)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime               @updatedAt @db.Timestamptz(6)
+
+  storeAssignments  BoStorePaymentMethod[]
+
+  @@map("bo_payment_methods_catalog")
+}
+
+model BoStorePaymentMethod {
+  id             String                 @id @default(uuid())
+  storeCode      String
+  paymentCode    String
+  active         Boolean                @default(true)
+  paymentMethod  BoPaymentMethodCatalog @relation(fields: [paymentCode], references: [code], onDelete: Cascade)
+
+  @@unique([storeCode, paymentCode])
+  @@map("bo_store_payment_methods")
+}
+
+model BoExchangeRate {
+  id        String    @id @default(uuid())
+  currency  String    @default("USD")
+  rate      Decimal   @db.Decimal(18, 4)
+  startDate DateTime  @db.Date
+  endDate   DateTime? @db.Date
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("bo_exchange_rates")
 }
