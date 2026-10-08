@@ -8,6 +8,7 @@ describe('SyncService & SyncController', () => {
   let service: SyncService;
   let controller: SyncController;
   let prismaMock: any;
+  let connectionFactoryMock: any;
 
   beforeEach(async () => {
     prismaMock = {
@@ -52,6 +53,10 @@ describe('SyncService & SyncController', () => {
       },
     };
 
+    connectionFactoryMock = {
+      getTpvConnection: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SyncController],
       providers: [
@@ -62,7 +67,7 @@ describe('SyncService & SyncController', () => {
         },
         {
           provide: 'IConnectionFactory',
-          useValue: {},
+          useValue: connectionFactoryMock,
         },
       ],
     }).compile();
@@ -755,8 +760,83 @@ describe('SyncService & SyncController', () => {
           UnauthorizedException,
         );
       } finally {
-        process.env.SYNC_API_KEY = origKey;
+        if (origKey !== undefined) {
+          process.env.SYNC_API_KEY = origKey;
+        } else {
+          delete process.env.SYNC_API_KEY;
+        }
       }
     });
   });
+
+  describe('SyncService.getCustomerLiveBalance & SyncController.getCustomerLiveBalance', () => {
+    it('retorna saldo y límite de crédito del cliente en la casa matriz (000)', async () => {
+      const tpvMock = {
+        queryParams: jest.fn().mockResolvedValue({
+          recordset: [
+            {
+              codigo: 'CLI-001',
+              nombre: 'Transportes Rápidos',
+              tipo_facturacion: 0,
+              bloqueado: false,
+              saldo: 5000,
+              limite_credito: 25000,
+              dias_credito: 15,
+              bloqueo_mora: true,
+            },
+          ],
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+      connectionFactoryMock.getTpvConnection.mockResolvedValue(tpvMock);
+
+      const res = await service.getCustomerLiveBalance('CLI-001');
+      expect(res.customerNo).toBe('CLI-001');
+      expect(res.customerName).toBe('Transportes Rápidos');
+      expect(res.balance).toBe(5000);
+      expect(res.creditLimit).toBe(25000);
+      expect(res.billingType).toBe(0);
+      expect(res.blocked).toBe(false);
+      expect(res.blockOnOverdue).toBe(true);
+      expect(tpvMock.close).toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException si el código está vacío', async () => {
+      await expect(service.getCustomerLiveBalance('')).rejects.toThrow(BadRequestException);
+    });
+
+    it('lanza NotFoundException si el cliente no existe en la matriz', async () => {
+      const tpvMock = {
+        queryParams: jest.fn().mockResolvedValue({ recordset: [] }),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+      connectionFactoryMock.getTpvConnection.mockResolvedValue(tpvMock);
+
+      await expect(service.getCustomerLiveBalance('INEXISTENTE')).rejects.toThrow(
+        /Cliente 'INEXISTENTE' no encontrado/,
+      );
+    });
+
+    it('SyncController.getCustomerLiveBalance valida x-sync-key y responde', async () => {
+      const tpvMock = {
+        queryParams: jest.fn().mockResolvedValue({
+          recordset: [
+            {
+              codigo: 'CLI-99',
+              nombre: 'Cliente 99',
+              saldo: 0,
+              limite_credito: 1000,
+            },
+          ],
+        }),
+        close: jest.fn().mockResolvedValue(undefined),
+      };
+      connectionFactoryMock.getTpvConnection.mockResolvedValue(tpvMock);
+
+      const res = await controller.getCustomerLiveBalance('CLI-99', 'prisma-cloud-sync-key');
+      expect(res.customerNo).toBe('CLI-99');
+      expect(res.creditLimit).toBe(1000);
+    });
+  });
 });
+

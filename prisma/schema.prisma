@@ -244,6 +244,7 @@ model BoSaleHeader {
   placa             String?
   chofer            String?
   reconcilerShiftId String?
+  creditValidationSource String?
   createdAt         DateTime          @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime          @updatedAt @db.Timestamptz(6)
   appliedDocNo      String?

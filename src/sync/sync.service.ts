@@ -155,6 +155,7 @@ export class SyncService {
           placa: sale.placa || null,
           chofer: sale.chofer || null,
           reconcilerShiftId: sale.reconcilerShiftId || null,
+          creditValidationSource: sale.creditValidationSource || null,
         },
         create: {
           source,
@@ -176,6 +177,7 @@ export class SyncService {
           placa: sale.placa || null,
           chofer: sale.chofer || null,
           reconcilerShiftId: sale.reconcilerShiftId || null,
+          creditValidationSource: sale.creditValidationSource || null,
         },
       });
 
@@ -918,4 +920,63 @@ export class SyncService {
       })),
     };
   }
+
+  /**
+   * Consulta el saldo en vivo, límite de crédito y estado de bloqueo de un cliente
+   * directamente en el catálogo central de la casa matriz (000).
+   */
+  async getCustomerLiveBalance(customerCode: string): Promise<{
+    customerNo: string;
+    customerName: string;
+    billingType: number;
+    blocked: boolean;
+    balance: number;
+    creditLimit: number;
+    creditDays: number;
+    blockOnOverdue: boolean;
+    hasOverdueInvoices: boolean;
+  }> {
+    const code = (customerCode || '').trim();
+    if (!code) {
+      throw new BadRequestException('El código de cliente es obligatorio.');
+    }
+
+    let tpv: any | null = null;
+    try {
+      if (this.connectionFactory) {
+        tpv = await this.connectionFactory.getTpvConnection(HQ_STORE_CODE);
+      }
+
+      if (!tpv) {
+        throw new NotFoundException(`No hay conexión con la casa matriz (${HQ_STORE_CODE}).`);
+      }
+
+      const result = await tpv.queryParams(
+        `SELECT codigo, nombre, tipo_facturacion, bloqueado, saldo, limite_credito, dias_credito, bloqueo_mora
+         FROM clientes
+         WHERE codigo = @customerNo`,
+        { customerNo: code },
+      );
+
+      const row = result?.recordset?.[0];
+      if (!row) {
+        throw new NotFoundException(`Cliente '${code}' no encontrado en la Matriz.`);
+      }
+
+      return {
+        customerNo: String(row.codigo || code).trim(),
+        customerName: String(row.nombre || code).trim(),
+        billingType: Number(row.tipo_facturacion) === 0 ? 0 : 1,
+        blocked: row.bloqueado === true || row.bloqueado === 1,
+        balance: row.saldo != null ? Number(row.saldo) : 0,
+        creditLimit: row.limite_credito != null ? Number(row.limite_credito) : 0,
+        creditDays: row.dias_credito != null ? Number(row.dias_credito) : 30,
+        blockOnOverdue: row.bloqueo_mora ?? true,
+        hasOverdueInvoices: false,
+      };
+    } finally {
+      if (tpv) await tpv.close().catch(() => undefined);
+    }
+  }
 }
+

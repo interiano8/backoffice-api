@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Query,
+  Param,
   Headers,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -62,6 +63,15 @@ export class SyncController {
   ) {
     this.validateAuth(syncKey);
     return this.syncService.getStoreConfig(storeCode);
+  }
+
+  @Get('customers/:code/live-balance')
+  async getCustomerLiveBalance(
+    @Param('code') code: string,
+    @Headers('x-sync-key') syncKey?: string,
+  ) {
+    this.validateAuth(syncKey);
+    return this.syncService.getCustomerLiveBalance(code);
   }
 
   @Post('ping')

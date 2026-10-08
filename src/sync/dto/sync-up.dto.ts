@@ -167,6 +167,10 @@ export class SyncSaleDto {
   @IsString()
   reconcilerShiftId?: string;
 
+  @IsOptional()
+  @IsString()
+  creditValidationSource?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SyncSaleLineDto)
