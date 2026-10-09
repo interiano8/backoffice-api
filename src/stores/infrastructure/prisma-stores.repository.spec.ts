@@ -73,6 +73,7 @@ describe('PrismaStoresRepository', () => {
           SyncMinutes: true,
           PresentationMinutes: true,
           validarSaldoCredito: true,
+          businessType: true,
         },
         orderBy: { code: 'asc' },
       });

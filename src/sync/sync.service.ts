@@ -883,6 +883,7 @@ export class SyncService {
         urlControlador: store.urlControlador || null,
         claveControlador: store.claveControlador || null,
         esControladorGas: store.esControladorGas ?? false,
+        businessType: store.businessType || 'GAS_STATION',
         moneda: store.moneda || 'HNL',
         codigoMoneda: store.codigoMoneda || 'HNL',
         logoUrl: store.logoUrl || null,

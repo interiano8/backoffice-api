@@ -25,6 +25,7 @@ export interface StoreEntity {
   urlControlador?: string | null;
   claveControlador?: string | null;
   esControladorGas?: boolean | null;
+  businessType?: string | null;
   emisor?: string | null;
   moneda?: string | null;
   codigoMoneda?: string | null;

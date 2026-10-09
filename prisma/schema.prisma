@@ -140,6 +140,7 @@ model BoStore {
   urlControlador         String?
   claveControlador       String?
   esControladorGas       Boolean?  @default(false)
+  businessType           String?   @default("GAS_STATION")
 
   // Parametros generales adicionales
   emisor                 String?

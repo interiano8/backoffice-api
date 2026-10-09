@@ -47,6 +47,7 @@ export class PrismaStoresRepository implements StoresRepository {
         SyncMinutes: true,
         PresentationMinutes: true,
         validarSaldoCredito: true,
+        businessType: true,
       },
       orderBy: { code: 'asc' },
     }) as unknown as Partial<StoreEntity>[];
