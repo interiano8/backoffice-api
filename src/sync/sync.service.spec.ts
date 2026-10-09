@@ -23,6 +23,9 @@ describe('SyncService & SyncController', () => {
       boPaymentMethod: {
         upsert: jest.fn().mockResolvedValue({ id: 'pay-1' }),
       },
+      boInventory: {
+        upsert: jest.fn().mockResolvedValue({ id: 'inv-1' }),
+      },
       boShift: {
         upsert: jest.fn().mockResolvedValue({ id: 'shift-1' }),
         findUnique: jest.fn().mockResolvedValue(null),

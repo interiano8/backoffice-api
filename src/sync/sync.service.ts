@@ -201,6 +201,7 @@ export class SyncService {
             volume: line.volume != null ? line.volume : null,
             unitPrice: line.unitPrice != null ? line.unitPrice : null,
             productName: line.productName || null,
+            productCode: line.productCode || null,
             unitOfMeasure: line.unitOfMeasure || null,
             pumpId: line.pumpId || null,
             hoseId: line.hoseId || null,
@@ -224,6 +225,7 @@ export class SyncService {
             volume: line.volume != null ? line.volume : null,
             unitPrice: line.unitPrice != null ? line.unitPrice : null,
             productName: line.productName || null,
+            productCode: line.productCode || null,
             unitOfMeasure: line.unitOfMeasure || null,
             pumpId: line.pumpId || null,
             hoseId: line.hoseId || null,
@@ -235,6 +237,33 @@ export class SyncService {
             saleHeaderId: header.id,
           },
         });
+
+        // Descontar inventario central si la línea corresponde a un producto con código o mercancía
+        const itemCode = line.productCode || (!line.pumpId && line.productName ? line.productName : null);
+        if (itemCode && tx.boInventory?.upsert) {
+          const qty = Number(line.volume) || 1;
+          await tx.boInventory.upsert({
+            where: {
+              storeCode_productCode: {
+                storeCode,
+                productCode: itemCode,
+              },
+            },
+            update: {
+              stock: { decrement: qty },
+              ...(line.productName ? { productName: line.productName } : {}),
+            },
+            create: {
+              storeCode,
+              productCode: itemCode,
+              productName: line.productName || null,
+              stock: -qty,
+              minStock: 0,
+            },
+          }).catch((err) => {
+            this.logger.warn(`No se pudo actualizar inventario HQ para ${itemCode} en tienda ${storeCode}: ${err.message}`);
+          });
+        }
       }
 
       // Payments

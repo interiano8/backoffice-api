@@ -20,6 +20,7 @@ model BoSale {
   volume            Decimal?      @db.Decimal(18, 4)
   unitPrice         Decimal?      @db.Decimal(18, 4)
   productName       String?
+  productCode       String?
   unitOfMeasure     String?
   pumpId            String?
   hoseId            String?
@@ -583,5 +584,20 @@ model BoSaleReclassification {
   @@index([storeCode, transactionId])
   @@index([storeCode, shiftNo])
   @@map("bo_sale_reclassifications")
+}
+
+model BoInventory {
+  id          String   @id @default(uuid())
+  storeCode   String   @map("store_code")
+  productCode String   @map("product_code")
+  productName String?  @map("product_name")
+  stock       Decimal  @default(0) @db.Decimal(18, 4)
+  minStock    Decimal  @default(0) @map("min_stock") @db.Decimal(18, 4)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([storeCode, productCode])
+  @@index([storeCode])
+  @@index([productCode])
+  @@map("bo_inventories")
 }
 

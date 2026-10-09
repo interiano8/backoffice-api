@@ -50,6 +50,10 @@ export class SyncSaleLineDto {
 
   @IsOptional()
   @IsString()
+  productCode?: string;
+
+  @IsOptional()
+  @IsString()
   unitOfMeasure?: string;
 
   @IsOptional()
