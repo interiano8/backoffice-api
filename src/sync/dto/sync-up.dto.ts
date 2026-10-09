@@ -244,6 +244,10 @@ export class SyncShiftDto {
   otherDeclared?: number;
 
   @IsOptional()
+  @IsNumber()
+  version?: number;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => SyncShiftControlTotalsDto)
   controlTotals?: SyncShiftControlTotalsDto;

@@ -92,6 +92,7 @@ model BoShift {
   cashVariance        Decimal?  @db.Decimal(18, 4)
   fuelVariance        Decimal?  @db.Decimal(18, 4)
   isLocked            Boolean   @default(false)
+  version             Int       @default(1)
 
   @@unique([source, storeCode, shiftDate, shiftNo, employeeName])
   @@index([shiftDate])
@@ -563,3 +564,23 @@ model BoExchangeRate {
 
   @@map("bo_exchange_rates")
 }
+
+model BoSaleReclassification {
+  id               String   @id @default(uuid())
+  storeCode        String
+  transactionId    String
+  shiftNo          String
+  versionTurno     Int      @default(1)
+  requestedByUser  String
+  authorizedByUser String
+  changeType       String
+  previousData     Json
+  newData          Json
+  reason           String
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([storeCode, transactionId])
+  @@index([storeCode, shiftNo])
+  @@map("bo_sale_reclassifications")
+}
+
