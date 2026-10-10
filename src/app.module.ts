@@ -25,6 +25,7 @@ import { AlertsModule } from './alerts/alerts.module';
 import { AccountingModule } from './accounting/accounting.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { InventoryModule } from './inventory/inventory.module';
     AccountingModule,
     PaymentMethodsModule,
     InventoryModule,
+    TransfersModule,
   ],
   controllers: [AppController],
   providers: [

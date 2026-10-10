@@ -601,3 +601,44 @@ model BoInventory {
   @@map("bo_inventories")
 }
 
+model BoStockTransfer {
+  id            String                @id @default(uuid())
+  transferNo    String                @unique @map("transfer_no")
+  fromStoreCode String                @map("from_store_code")
+  toStoreCode   String                @map("to_store_code")
+  status        String                @default("REQUESTED") // REQUESTED, APPROVED, IN_TRANSIT, RECEIVED, CANCELLED
+  requestedBy   String                @map("requested_by")
+  approvedBy    String?               @map("approved_by")
+  dispatchedBy  String?               @map("dispatched_by")
+  receivedBy    String?               @map("received_by")
+  notes         String?               @db.Text
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  approvedAt    DateTime?             @map("approved_at") @db.Timestamptz(6)
+  dispatchedAt  DateTime?             @map("dispatched_at") @db.Timestamptz(6)
+  receivedAt    DateTime?             @map("received_at") @db.Timestamptz(6)
+  items         BoStockTransferItem[]
+
+  @@index([fromStoreCode])
+  @@index([toStoreCode])
+  @@index([status])
+  @@index([createdAt])
+  @@map("bo_stock_transfers")
+}
+
+model BoStockTransferItem {
+  id                 String          @id @default(uuid())
+  transferId         String          @map("transfer_id")
+  transfer           BoStockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  productCode        String          @map("product_code")
+  productName        String?         @map("product_name")
+  quantityRequested  Decimal         @map("quantity_requested") @db.Decimal(18, 4)
+  quantityDispatched Decimal?        @map("quantity_dispatched") @db.Decimal(18, 4)
+  quantityReceived   Decimal?        @map("quantity_received") @db.Decimal(18, 4)
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([transferId])
+  @@index([productCode])
+  @@map("bo_stock_transfer_items")
+}
+
