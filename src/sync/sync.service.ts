@@ -928,8 +928,8 @@ export class SyncService {
         claveControlador: store.claveControlador || null,
         esControladorGas: store.esControladorGas ?? false,
         businessType: store.businessType || 'GAS_STATION',
-        moneda: store.moneda || 'HNL',
-        codigoMoneda: store.codigoMoneda || 'HNL',
+        moneda: store.moneda || 'L',
+        codigoMoneda: store.codigoMoneda || 'HN',
         logoUrl: store.logoUrl || null,
         variasLineasPermitidas: true,
         descuentosPermitidos: true,
@@ -963,7 +963,7 @@ export class SyncService {
         codigoGenerico: h.genericCode || h.posCode || String(h.gradeId),
         visible: h.active ?? true,
         unidadMedida: h.unitOfMeasure || 'GL',
-        codigoMoneda: store.codigoMoneda || 'HNL',
+        codigoMoneda: store.codigoMoneda || 'HN',
       })),
     };
   }

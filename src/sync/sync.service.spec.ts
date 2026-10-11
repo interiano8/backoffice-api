@@ -678,8 +678,8 @@ describe('SyncService & SyncController', () => {
         urlControlador: 'http://192.168.1.100:5008',
         claveControlador: 'SECRET-WAYNE',
         esControladorGas: false,
-        moneda: 'HNL',
-        codigoMoneda: 'HNL',
+        moneda: 'L',
+        codigoMoneda: 'HN',
         configVersion: 3,
         posConfig: {
           codigoPos: '01',
@@ -724,9 +724,29 @@ describe('SyncService & SyncController', () => {
       expect(config.tienda.nombre).toBe('Estación Norte');
       expect(config.tienda.ipFusion).toBe('192.168.1.100');
       expect(config.tienda.claveControlador).toBe('SECRET-WAYNE');
+      expect(config.tienda.moneda).toBe('L');
+      expect(config.tienda.codigoMoneda).toBe('HN');
       expect(config.configuracionPos.pantallaEnBomba).toBe(true);
       expect(config.mangueras).toHaveLength(2);
       expect(config.mangueras[0].nombreGrado).toBe('SUPER');
+      expect(config.mangueras[0].codigoMoneda).toBe('HN');
+    });
+
+    it('aplica valores por defecto L y HN si moneda o codigoMoneda no estan definidos', async () => {
+      prismaMock.boStore.findUnique.mockResolvedValueOnce({
+        id: 'store-fallback',
+        code: '003',
+        name: 'Estación Sur',
+        moneda: null,
+        codigoMoneda: null,
+        configVersion: 1,
+      });
+
+      prismaMock.boHose.findMany.mockResolvedValueOnce([]);
+
+      const config = await service.getStoreConfig('003');
+      expect(config.tienda.moneda).toBe('L');
+      expect(config.tienda.codigoMoneda).toBe('HN');
     });
 
     it('lanza BadRequestException si storeCode esta vacio', async () => {
