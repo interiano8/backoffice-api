@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryService } from './inventory.service';
+import { InventoryCountService } from './inventory-count.service';
 import { InventoryController } from './inventory.controller';
 import { PrismaService } from '../prisma/prisma.service';
+
 
 describe('InventoryService & InventoryController', () => {
   let service: InventoryService;
@@ -69,6 +71,17 @@ describe('InventoryService & InventoryController', () => {
       controllers: [InventoryController],
       providers: [
         InventoryService,
+        {
+          provide: InventoryCountService,
+          useValue: {
+            createCountSession: jest.fn(),
+            listCountSessions: jest.fn(),
+            getCountSessionById: jest.fn(),
+            updateCountItems: jest.fn(),
+            applyAdjustments: jest.fn(),
+            cancelCountSession: jest.fn(),
+          },
+        },
         { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
@@ -76,6 +89,7 @@ describe('InventoryService & InventoryController', () => {
     service = module.get<InventoryService>(InventoryService);
     controller = module.get<InventoryController>(InventoryController);
   });
+
 
   describe('InventoryService', () => {
     it('should return network inventory across all active stores', async () => {

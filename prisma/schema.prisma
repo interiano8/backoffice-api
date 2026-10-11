@@ -642,3 +642,42 @@ model BoStockTransferItem {
   @@map("bo_stock_transfer_items")
 }
 
+model BoInventoryCountSession {
+  id          String                 @id @default(uuid())
+  sessionNo   String                 @unique @map("session_no")
+  storeCode   String                 @map("store_code")
+  status      String                 @default("DRAFT") // DRAFT, COMPLETED, APPLIED, CANCELLED
+  countedBy   String                 @map("counted_by")
+  approvedBy  String?                @map("approved_by")
+  notes       String?                @db.Text
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  appliedAt   DateTime?              @map("applied_at") @db.Timestamptz(6)
+  items       BoInventoryCountItem[]
+
+  @@index([storeCode])
+  @@index([status])
+  @@index([createdAt])
+  @@map("bo_inventory_count_sessions")
+}
+
+model BoInventoryCountItem {
+  id               String                  @id @default(uuid())
+  sessionId        String                  @map("session_id")
+  session          BoInventoryCountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  productCode      String                  @map("product_code")
+  productName      String?                 @map("product_name")
+  theoreticalStock Decimal                 @default(0) @map("theoretical_stock") @db.Decimal(18, 4)
+  countedStock     Decimal                 @default(0) @map("counted_stock") @db.Decimal(18, 4)
+  variance         Decimal                 @default(0) @db.Decimal(18, 4)
+  reason           String?
+  notes            String?                 @db.Text
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([sessionId])
+  @@index([productCode])
+  @@map("bo_inventory_count_items")
+}
+
+
