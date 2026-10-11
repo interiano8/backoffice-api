@@ -130,6 +130,57 @@ describe('InventoryService & InventoryController', () => {
       expect(prismaMock.boInventory.upsert).toHaveBeenCalled();
       expect(res.stock).toBe(30);
     });
+
+    it('should calculate low stock alerts and replenishment suggestions', async () => {
+      prismaMock.boInventory.findMany.mockResolvedValueOnce([
+        {
+          id: 'inv-out',
+          storeCode: '001',
+          productCode: 'PROD-OUT',
+          productName: 'Agotado',
+          stock: 0,
+          minStock: 10,
+          updatedAt: new Date(),
+        },
+        {
+          id: 'inv-crit',
+          storeCode: '001',
+          productCode: 'PROD-CRIT',
+          productName: 'Critico',
+          stock: 3,
+          minStock: 10,
+          updatedAt: new Date(),
+        },
+        {
+          id: 'inv-warn',
+          storeCode: '001',
+          productCode: 'PROD-WARN',
+          productName: 'Advertencia',
+          stock: 8,
+          minStock: 10,
+          updatedAt: new Date(),
+        },
+        {
+          id: 'inv-ok',
+          storeCode: '001',
+          productCode: 'PROD-OK',
+          productName: 'Normal',
+          stock: 25,
+          minStock: 10,
+          updatedAt: new Date(),
+        },
+      ]);
+
+      const alerts = await service.getLowStockAlerts('001');
+
+      expect(alerts).toHaveLength(3);
+      expect(alerts[0].criticality).toBe('OUT_OF_STOCK');
+      expect(alerts[0].suggestedReorder).toBe(20); // (10 * 2) - 0
+      expect(alerts[1].criticality).toBe('CRITICAL');
+      expect(alerts[1].suggestedReorder).toBe(17); // (10 * 2) - 3
+      expect(alerts[2].criticality).toBe('WARNING');
+      expect(alerts[2].suggestedReorder).toBe(12); // (10 * 2) - 8
+    });
   });
 
   describe('InventoryController', () => {
@@ -138,10 +189,18 @@ describe('InventoryService & InventoryController', () => {
       expect(res.totalNetworkStock).toBe(35);
     });
 
+    it('should expose low stock alerts endpoint', async () => {
+      jest.spyOn(service, 'getLowStockAlerts').mockResolvedValueOnce([]);
+      const res = await controller.getLowStockAlerts('001');
+      expect(service.getLowStockAlerts).toHaveBeenCalledWith('001');
+      expect(res).toEqual([]);
+    });
+
     it('should expose single store inventory endpoint', async () => {
       const res = await controller.getStoreInventory('001', 'PROD-001');
       expect(res.stock).toBe(25);
     });
+
 
     it('should expose adjust stock endpoint', async () => {
       const res = await controller.adjustStock({

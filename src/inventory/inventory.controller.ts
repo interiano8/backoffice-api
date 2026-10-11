@@ -13,6 +13,7 @@ import {
 import { InventoryService } from './inventory.service';
 import { InventoryCountService } from './inventory-count.service';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { UpdateThresholdDto } from './dto/update-threshold.dto';
 import {
   CreateInventoryCountDto,
   UpdateInventoryCountItemsDto,
@@ -31,6 +32,18 @@ export class InventoryController {
   async getNetworkInventory(@Param('productCode') productCode: string) {
     return this.inventoryService.getNetworkInventory(productCode);
   }
+
+  // Low stock alerts & replenishment
+  @Get('alerts/low-stock')
+  async getLowStockAlerts(@Query('storeCode') storeCode?: string) {
+    return this.inventoryService.getLowStockAlerts(storeCode);
+  }
+
+  @Put('thresholds')
+  async updateThresholds(@Body() dto: UpdateThresholdDto) {
+    return this.inventoryService.updateThresholds(dto.storeCode, dto.items);
+  }
+
 
   // Count sessions endpoints
   @Post('counts')
