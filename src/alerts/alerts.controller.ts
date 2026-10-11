@@ -20,7 +20,7 @@ import { FiscalAuditService } from '../reconciliation/application/services/fisca
 
 export interface OperationalAlertItem {
   id: string;
-  type: 'SHIFT_DISCREPANCY' | 'FISCAL_GAP' | 'OFFLINE_STORE';
+  type: 'SHIFT_DISCREPANCY' | 'FISCAL_GAP' | 'OFFLINE_STORE' | 'STOCK_TRANSFER' | 'LOW_STOCK';
   severity: 'CRITICAL' | 'WARNING';
   title: string;
   description: string;
@@ -29,6 +29,7 @@ export interface OperationalAlertItem {
   link: string;
   metadata?: Record<string, any>;
 }
+
 
 export interface RecentAlertsResponse {
   total: number;
@@ -191,6 +192,73 @@ export class AlertsController {
       }
     }
 
+    // 4. Traspasos de Stock pendientes de despacho o recepción
+    try {
+      const pendingTransfers = await this.prisma.boStockTransfer.findMany({
+        where: {
+          status: { in: ['REQUESTED', 'IN_TRANSIT'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+
+      for (const trf of pendingTransfers) {
+        alerts.push({
+          id: `transfer-${trf.id}`,
+          type: 'STOCK_TRANSFER',
+          severity: trf.status === 'REQUESTED' ? 'CRITICAL' : 'WARNING',
+          title: `Traspaso ${trf.transferNo} (${trf.status === 'REQUESTED' ? 'Pendiente Despacho' : 'En Tránsito'})`,
+          description: `De tienda ${trf.fromStoreCode} hacia ${trf.toStoreCode} por ${trf.requestedBy}`,
+          storeCode: trf.toStoreCode,
+          timestamp: trf.updatedAt.toISOString(),
+          link: '/transfers',
+          metadata: {
+            transferNo: trf.transferNo,
+            fromStoreCode: trf.fromStoreCode,
+            toStoreCode: trf.toStoreCode,
+            status: trf.status,
+          },
+        });
+      }
+    } catch {
+      // Ignorar fallo en traspasos
+    }
+
+    // 5. Inventario Crítico o Agotado (Retail Stockout Alerts)
+    try {
+      const lowStockItems = await this.prisma.boInventory.findMany({
+        where: {
+          minStock: { gt: 0 },
+        },
+        take: 20,
+      });
+
+      for (const inv of lowStockItems) {
+        const stock = Number(inv.stock);
+        const minStock = Number(inv.minStock);
+        if (stock <= minStock) {
+          const isOut = stock <= 0;
+          alerts.push({
+            id: `lowstock-${inv.id}`,
+            type: 'LOW_STOCK',
+            severity: isOut ? 'CRITICAL' : 'WARNING',
+            title: `${isOut ? '¡Agotado!' : 'Stock Crítico'}: ${inv.productCode} (${inv.productName || 'Producto'})`,
+            description: `Stock: ${stock} / Mínimo: ${minStock} en tienda ${inv.storeCode}`,
+            storeCode: inv.storeCode,
+            timestamp: inv.updatedAt.toISOString(),
+            link: '/inventory-audits',
+            metadata: {
+              productCode: inv.productCode,
+              stock,
+              minStock,
+            },
+          });
+        }
+      }
+    } catch {
+      // Ignorar fallo en inventarios
+    }
+
     // Ordenar de más reciente a más antiguo
     alerts.sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -203,4 +271,5 @@ export class AlertsController {
       alerts,
     };
   }
+
 }
