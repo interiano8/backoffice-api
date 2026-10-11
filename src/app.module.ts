@@ -26,6 +26,7 @@ import { AccountingModule } from './accounting/accounting.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { TransfersModule } from './transfers/transfers.module';
+import { PromotionsModule } from './promotions/promotions.module';
 
 @Module({
   imports: [
@@ -70,7 +71,9 @@ import { TransfersModule } from './transfers/transfers.module';
     PaymentMethodsModule,
     InventoryModule,
     TransfersModule,
+    PromotionsModule,
   ],
+
   controllers: [AppController],
   providers: [
     AppService,

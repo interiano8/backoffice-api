@@ -680,4 +680,41 @@ model BoInventoryCountItem {
   @@map("bo_inventory_count_items")
 }
 
+model BoPromotion {
+  id           String            @id @default(uuid())
+  code         String            @unique
+  name         String
+  description  String?           @db.Text
+  type         String            @default("FIXED_PRICE_COMBO") // FIXED_PRICE_COMBO, PERCENT_DISCOUNT, BUY_X_GET_Y
+  fixedPrice   Decimal?          @map("fixed_price") @db.Decimal(18, 4)
+  discountPct  Decimal?          @map("discount_pct") @db.Decimal(5, 2)
+  startDate    DateTime?         @map("start_date") @db.Timestamptz(6)
+  endDate      DateTime?         @map("end_date") @db.Timestamptz(6)
+  storeCode    String?           @map("store_code") // null applies to all stores
+  active       Boolean           @default(true)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items        BoPromotionItem[]
+
+  @@index([storeCode])
+  @@index([active])
+  @@map("bo_promotions")
+}
+
+model BoPromotionItem {
+  id               String      @id @default(uuid())
+  promotionId      String      @map("promotion_id")
+  promotion        BoPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  productCode      String      @map("product_code")
+  productName      String?     @map("product_name")
+  quantityRequired Decimal     @default(1) @map("quantity_required") @db.Decimal(18, 4)
+  isReward         Boolean     @default(false) @map("is_reward")
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([promotionId])
+  @@index([productCode])
+  @@map("bo_promotion_items")
+}
+
+
 
