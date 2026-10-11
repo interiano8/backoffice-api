@@ -56,7 +56,7 @@ export class PrismaHoseSyncRepository {
         id_bomba as "PumpID", 
         numero_grado as "GradeNumber", 
         nombre_grado as "GradeName", 
-        precio_unitario as "PricePerUnit", 
+        0 as "PricePerUnit", 
         ids_tanques as "TankIDs", 
         id_manguera_fisica as "HosePhysicalID", 
         codigo_pos as "CodigoPOS", 
