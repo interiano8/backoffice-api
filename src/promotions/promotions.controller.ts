@@ -9,7 +9,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PromotionsService } from './promotions.service';
 import {
   CreatePromotionDto,
@@ -17,6 +19,7 @@ import {
 } from './dto/promotion.dto';
 
 @Controller(['promotions', 'api/promotions'])
+@UseGuards(JwtAuthGuard)
 export class PromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}
 

@@ -9,7 +9,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { InventoryService } from './inventory.service';
 import { InventoryCountService } from './inventory-count.service';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
@@ -22,6 +24,7 @@ import {
 } from './dto/inventory-count.dto';
 
 @Controller(['inventory', 'api/inventory'])
+@UseGuards(JwtAuthGuard)
 export class InventoryController {
   constructor(
     private readonly inventoryService: InventoryService,

@@ -8,7 +8,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TransfersService } from './transfers.service';
 import {
   CreateTransferDto,
@@ -18,6 +20,7 @@ import {
 } from './dto/create-transfer.dto';
 
 @Controller(['transfers', 'api/transfers'])
+@UseGuards(JwtAuthGuard)
 export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
 

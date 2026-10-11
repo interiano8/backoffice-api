@@ -20,10 +20,6 @@ export class SyncController {
     if (syncKey && syncKey === expectedKey) {
       return true;
     }
-    // Si no se configuró clave estricta en el entorno, permitir por defecto
-    if (!process.env.SYNC_API_KEY) {
-      return true;
-    }
     throw new UnauthorizedException('Clave de sincronización inválida.');
   }
 

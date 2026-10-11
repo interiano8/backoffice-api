@@ -102,5 +102,11 @@
         "branches": 10
       }
     }
+  },
+  "overrides": {
+    "proxy-addr": "^2.0.8"
+  },
+  "resolutions": {
+    "proxy-addr": "^2.0.8"
   }
 }
