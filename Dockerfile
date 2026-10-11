@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 RUN npm install -g pnpm@9
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 COPY prisma ./prisma
 RUN pnpm prisma generate
