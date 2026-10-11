@@ -4,6 +4,7 @@ import { AlertConfigService } from './alert-config.service';
 import { BrevoNotificationService } from './brevo-notification.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FiscalAuditService } from '../reconciliation/application/services/fiscal-audit.service';
+import { AlertsBroadcastService } from './alerts-broadcast.service';
 import { BadRequestException } from '@nestjs/common';
 
 describe('AlertsController', () => {
@@ -38,11 +39,19 @@ describe('AlertsController', () => {
       detectFiscalGaps: jest.fn().mockResolvedValue({ gaps: [] }),
     };
 
+    const alertsBroadcastServiceMock = {
+      emit: jest.fn(),
+      getAlerts$: jest.fn().mockReturnValue({
+        pipe: jest.fn().mockReturnValue({}),
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertsController],
       providers: [
         { provide: AlertConfigService, useValue: alertConfigServiceMock },
         { provide: BrevoNotificationService, useValue: brevoServiceMock },
+        { provide: AlertsBroadcastService, useValue: alertsBroadcastServiceMock },
         { provide: PrismaService, useValue: prismaMock },
         { provide: FiscalAuditService, useValue: fiscalAuditServiceMock },
       ],

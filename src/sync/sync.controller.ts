@@ -72,10 +72,21 @@ export class SyncController {
 
   @Post('ping')
   async ping(
-    @Body() body: { storeCode: string; queueCount?: number },
+    @Body()
+    body: {
+      storeCode: string;
+      queueCount?: number;
+      fusionStatus?: string;
+      posVersion?: string;
+    },
     @Headers('x-sync-key') syncKey?: string,
   ) {
     this.validateAuth(syncKey);
-    return this.syncService.ping(body.storeCode, body.queueCount);
+    return this.syncService.ping(
+      body.storeCode,
+      body.queueCount,
+      body.fusionStatus,
+      body.posVersion,
+    );
   }
 }

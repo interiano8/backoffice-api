@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TransfersService } from './transfers.service';
@@ -62,9 +63,10 @@ export class TransfersController {
   @Patch(':id/receive')
   async receiveTransfer(
     @Param('id') id: string,
-    @Body() dto: ReceiveTransferDto,
+    @Body() dto?: ReceiveTransferDto,
+    @Request() req?: any,
   ) {
-    return this.transfersService.receiveTransfer(id, dto);
+    return this.transfersService.receiveTransfer(id, dto, req?.user);
   }
 
   @Patch(':id/cancel')

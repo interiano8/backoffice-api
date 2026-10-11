@@ -6,6 +6,7 @@ import type { IConnectionFactory } from '../common/connections/connection-factor
 import { AlertConfigService } from '../alerts/alert-config.service';
 import { BrevoNotificationService } from '../alerts/brevo-notification.service';
 import { AlertTemplateBuilder } from '../alerts/alert-template.builder';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 /** Código de la casa matriz: fuente única del catálogo central de clientes. */
 const HQ_STORE_CODE = '000';
@@ -21,6 +22,7 @@ export class SyncService {
     private readonly connectionFactory?: IConnectionFactory,
     @Optional() private readonly alertConfigService?: AlertConfigService,
     @Optional() private readonly brevoService?: BrevoNotificationService,
+    @Optional() private readonly telemetryService?: TelemetryService,
   ) {}
 
   async syncUp(dto: SyncUpDto) {
@@ -837,7 +839,12 @@ export class SyncService {
     }
   }
 
-  async ping(storeCode: string, queueCount?: number) {
+  async ping(
+    storeCode: string,
+    queueCount?: number,
+    fusionStatus?: string,
+    posVersion?: string,
+  ) {
     const now = new Date();
     await this.prisma.boStore.upsert({
       where: { code: storeCode },
@@ -854,6 +861,14 @@ export class SyncService {
         healthStatus: 'ONLINE',
       },
     }).catch(() => {});
+
+    // Registrar en el motor de telemetría en tiempo real
+    this.telemetryService?.recordHeartbeat({
+      storeCode,
+      fusionStatus: (fusionStatus as any) || 'ONLINE',
+      pendingSyncCount: queueCount ?? 0,
+      posVersion,
+    });
 
     return {
       status: 'pong',

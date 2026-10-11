@@ -72,12 +72,28 @@ export class ReceiveTransferItemDto {
 
   @IsNumber()
   quantity!: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class ReceiveTransferDto {
   @IsOptional()
   @IsString()
   receivedBy?: string;
+
+  @IsOptional()
+  @IsString()
+  discrepancyReason?: string;
+
+  @IsOptional()
+  @IsString()
+  discrepancyNotes?: string;
 
   @IsOptional()
   @IsArray()

@@ -3,11 +3,13 @@ import { BadRequestException } from '@nestjs/common';
 import { TransfersService } from './transfers.service';
 import { TransfersController } from './transfers.controller';
 import { PrismaService } from '../prisma/prisma.service';
+import { AlertsBroadcastService } from '../alerts/alerts-broadcast.service';
 
 describe('TransfersService & TransfersController', () => {
   let service: TransfersService;
   let controller: TransfersController;
   let prismaMock: any;
+  let alertsBroadcastServiceMock: any;
 
   beforeEach(async () => {
     prismaMock = {
@@ -133,9 +135,17 @@ describe('TransfersService & TransfersController', () => {
               });
             }),
           },
+          activityLog: {
+            create: jest.fn().mockResolvedValue({}),
+          },
         };
         return callback(txMock);
       }),
+    };
+
+    alertsBroadcastServiceMock = {
+      emit: jest.fn(),
+      getStream: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -145,6 +155,10 @@ describe('TransfersService & TransfersController', () => {
         {
           provide: PrismaService,
           useValue: prismaMock,
+        },
+        {
+          provide: AlertsBroadcastService,
+          useValue: alertsBroadcastServiceMock,
         },
       ],
     }).compile();
@@ -205,6 +219,31 @@ describe('TransfersService & TransfersController', () => {
     expect(res.status).toBe('RECEIVED');
   });
 
+  it('should receive an IN_TRANSIT transfer with discrepancy and transition to RECEIVED_WITH_DISCREPANCY', async () => {
+    const res = await service.receiveTransfer(
+      'trf-transit',
+      {
+        receivedBy: 'ENCARGADO_DESTINO',
+        discrepancyReason: 'FALTANTE_NO_LLEGO',
+        discrepancyNotes: 'Llegaron solo 4 de 5',
+        items: [{ productCode: 'OIL-5W30', quantity: 4 }],
+      },
+      { storeCode: '002', role: 'EMPLOYEE' },
+    );
+    expect(res.status).toBe('RECEIVED_WITH_DISCREPANCY');
+    expect(res.notes).toContain('FALTANTE_NO_LLEGO');
+  });
+
+  it('should reject reception if user belongs to a different store and is not admin', async () => {
+    await expect(
+      service.receiveTransfer(
+        'trf-transit',
+        { receivedBy: 'OTRO_CAJERO' },
+        { storeCode: '001', role: 'EMPLOYEE' }, // transfer.toStoreCode is 002
+      ),
+    ).rejects.toThrow();
+  });
+
   it('should cancel a transfer in REQUESTED state', async () => {
     const res = await service.cancelTransfer('trf-uuid-1', { reason: 'No requerido' });
     expect(res.status).toBe('CANCELLED');
@@ -220,5 +259,58 @@ describe('TransfersService & TransfersController', () => {
     const list = await controller.getTransfers('001', 'REQUESTED');
     expect(list).toBeDefined();
     expect(prismaMock.boStockTransfer.findMany).toHaveBeenCalled();
+  });
+
+  it('E2E simulation: create 10 units transfer, receive 9 units, verify RECEIVED_WITH_DISCREPANCY, shrinkage audit, and SSE event', async () => {
+    // 1. Create transfer with 10 units
+    const created = await service.createTransfer({
+      fromStoreCode: '001',
+      toStoreCode: '002',
+      requestedBy: 'CAJERO-SIM',
+      items: [{ productCode: 'OIL-10W40', quantity: 10 }],
+    });
+    expect(created.status).toBe('REQUESTED');
+
+    // 2. Setup mock for in-transit transfer with 10 units dispatched
+    prismaMock.boStockTransfer.findUnique.mockResolvedValueOnce({
+      id: 'trf-sim-10',
+      transferNo: 'TRF-SIM-10',
+      fromStoreCode: '001',
+      toStoreCode: '002',
+      status: 'IN_TRANSIT',
+      items: [
+        {
+          id: 'item-sim-1',
+          productCode: 'OIL-10W40',
+          quantityRequested: 10,
+          quantityDispatched: 10,
+          quantityReceived: null,
+        },
+      ],
+    });
+
+    // 3. Receive transfer with only 9 units (1 missing)
+    const received = await service.receiveTransfer(
+      'trf-sim-10',
+      {
+        receivedBy: 'OPERADOR_RECEPTOR',
+        discrepancyReason: 'FALTANTE_NO_LLEGO',
+        discrepancyNotes: 'Llegaron 9 botes, faltó 1 en caja',
+        items: [{ productCode: 'OIL-10W40', quantity: 9 }],
+      },
+      { storeCode: '002', role: 'OPERATOR' },
+    );
+
+    // 4. Verify status is RECEIVED_WITH_DISCREPANCY
+    expect(received.status).toBe('RECEIVED_WITH_DISCREPANCY');
+
+    // 5. Verify SSE alert was emitted
+    expect(alertsBroadcastServiceMock.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'TRANSFER_DISCREPANCY',
+        severity: 'CRITICAL',
+        title: expect.stringContaining('Recibido con Discrepancia'),
+      }),
+    );
   });
 });

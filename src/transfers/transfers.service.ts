@@ -1,5 +1,14 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+  Optional,
+  Inject,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AlertsBroadcastService } from '../alerts/alerts-broadcast.service';
 import {
   CreateTransferDto,
   DispatchTransferDto,
@@ -11,7 +20,12 @@ import {
 export class TransfersService {
   private readonly logger = new Logger(TransfersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(AlertsBroadcastService)
+    private readonly alertsBroadcastService?: AlertsBroadcastService,
+  ) {}
 
   async createTransfer(dto: CreateTransferDto) {
     const fromStore = (dto.fromStoreCode || '').trim();
@@ -62,6 +76,19 @@ export class TransfersService {
     });
 
     this.logger.log(`Created transfer ${transfer.transferNo} from ${fromStore} to ${toStore}`);
+
+    this.alertsBroadcastService?.emit({
+      id: `transfer-created-${transfer.id}`,
+      type: 'STOCK_TRANSFER',
+      severity: 'WARNING',
+      title: `Solicitud de Traspaso ${transfer.transferNo}`,
+      description: `Sucursal ${fromStore} solicitó traspaso hacia ${toStore}`,
+      storeCode: toStore,
+      timestamp: new Date().toISOString(),
+      link: '/transfers',
+      metadata: { transferNo: transfer.transferNo, status: 'REQUESTED' },
+    });
+
     return transfer;
   }
 
@@ -135,7 +162,7 @@ export class TransfersService {
 
     const dispatchedBy = dto?.dispatchedBy || 'HQ_OPERATOR';
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const item of transfer.items) {
         const itemOverride = dto?.items?.find((i) => i.productCode === item.productCode);
         const qtyToDispatch = Number(itemOverride ? itemOverride.quantity : item.quantityRequested);
@@ -188,9 +215,28 @@ export class TransfersService {
         include: { items: true },
       });
     });
+
+    this.alertsBroadcastService?.emit({
+      id: `transfer-dispatched-${result.id}`,
+      type: 'STOCK_TRANSFER',
+      severity: 'INFO',
+      title: `Traspaso ${result.transferNo} en Tránsito`,
+      description: `Sucursal ${result.fromStoreCode} despachó mercancía hacia ${result.toStoreCode}`,
+      storeCode: result.toStoreCode,
+      timestamp: new Date().toISOString(),
+      link: '/transfers',
+      metadata: {
+        transferNo: result.transferNo,
+        fromStoreCode: result.fromStoreCode,
+        toStoreCode: result.toStoreCode,
+        status: 'IN_TRANSIT',
+      },
+    });
+
+    return result;
   }
 
-  async receiveTransfer(id: string, dto?: ReceiveTransferDto) {
+  async receiveTransfer(id: string, dto?: ReceiveTransferDto, user?: any) {
     const transfer = await this.getTransferById(id);
 
     if (transfer.status !== 'IN_TRANSIT') {
@@ -199,16 +245,44 @@ export class TransfersService {
       );
     }
 
-    const receivedBy = dto?.receivedBy || 'HQ_OPERATOR';
+    // 1. Validar autorización de tienda (Solo la tienda destino o admin global)
+    if (user) {
+      const isSuperAdmin =
+        user.role === 'SUPER_ADMIN' ||
+        user.role === 'ADMIN' ||
+        user.roles?.includes('SUPER_ADMIN') ||
+        user.roles?.includes('ADMIN');
 
-    return this.prisma.$transaction(async (tx) => {
+      if (!isSuperAdmin && user.storeCode && user.storeCode !== transfer.toStoreCode) {
+        throw new ForbiddenException(
+          `Solo el personal de la sucursal receptora (${transfer.toStoreCode}) o un administrador global puede confirmar la recepción.`,
+        );
+      }
+    }
+
+    const receivedBy = dto?.receivedBy || user?.username || 'HQ_OPERATOR';
+
+    // 2. Evaluar discrepancias en los artículos recibidos vs despachados
+    let hasDiscrepancy = false;
+    for (const item of transfer.items) {
+      const itemOverride = dto?.items?.find((i) => i.productCode === item.productCode);
+      const qtyDispatched = Number(item.quantityDispatched ?? item.quantityRequested);
+      const qtyToReceive = Number(
+        itemOverride ? itemOverride.quantity : qtyDispatched,
+      );
+      if (qtyToReceive !== qtyDispatched) {
+        hasDiscrepancy = true;
+      }
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const item of transfer.items) {
         const itemOverride = dto?.items?.find((i) => i.productCode === item.productCode);
+        const qtyDispatched = Number(item.quantityDispatched ?? item.quantityRequested);
         const qtyToReceive = Number(
-          itemOverride
-            ? itemOverride.quantity
-            : item.quantityDispatched ?? item.quantityRequested,
+          itemOverride ? itemOverride.quantity : qtyDispatched,
         );
+        const variance = qtyToReceive - qtyDispatched;
 
         // Increment destination store stock (upsert if not present)
         await tx.boInventory.upsert({
@@ -238,18 +312,86 @@ export class TransfersService {
             quantityReceived: qtyToReceive,
           },
         });
+
+        // Registrar merma o sobrante en log de actividad si hay discrepancia
+        if (variance !== 0) {
+          const reason = itemOverride?.reason || dto?.discrepancyReason || 'FALTANTE_RECEPCION';
+          await tx.activityLog.create({
+            data: {
+              action: variance < 0 ? 'TRANSFER_SHRINKAGE' : 'TRANSFER_SURPLUS',
+              entity: 'STOCK_TRANSFER',
+              entityId: transfer.id,
+              storeCode: transfer.toStoreCode,
+              userId: receivedBy,
+              metadata: JSON.stringify({
+                transferNo: transfer.transferNo,
+                fromStoreCode: transfer.fromStoreCode,
+                toStoreCode: transfer.toStoreCode,
+                productCode: item.productCode,
+                quantityDispatched: qtyDispatched,
+                quantityReceived: qtyToReceive,
+                variance,
+                reason,
+                notes: itemOverride?.notes || dto?.discrepancyNotes,
+              }),
+            },
+          });
+        }
       }
+
+      const finalStatus = hasDiscrepancy ? 'RECEIVED_WITH_DISCREPANCY' : 'RECEIVED';
+      const reasonLabel = dto?.discrepancyReason ? ` [Motivo: ${dto.discrepancyReason}]` : '';
+      const notesLabel = dto?.discrepancyNotes ? ` [Notas: ${dto.discrepancyNotes}]` : '';
+      const updatedNotes = ((transfer.notes || '') + reasonLabel + notesLabel).trim() || null;
 
       return tx.boStockTransfer.update({
         where: { id },
         data: {
-          status: 'RECEIVED',
+          status: finalStatus,
           receivedBy,
           receivedAt: new Date(),
+          notes: updatedNotes,
         },
         include: { items: true },
       });
     });
+
+    // 3. Emitir evento SSE en tiempo real
+    if (hasDiscrepancy) {
+      this.alertsBroadcastService?.emit({
+        id: `discrepancy-${result.id}`,
+        type: 'TRANSFER_DISCREPANCY',
+        severity: 'CRITICAL',
+        title: `Traspaso ${result.transferNo} Recibido con Discrepancia`,
+        description: `Sucursal ${result.toStoreCode} reportó diferencias en recepción desde ${result.fromStoreCode}`,
+        storeCode: result.toStoreCode,
+        timestamp: new Date().toISOString(),
+        link: '/transfers',
+        metadata: {
+          transferNo: result.transferNo,
+          fromStoreCode: result.fromStoreCode,
+          toStoreCode: result.toStoreCode,
+          status: result.status,
+        },
+      });
+    } else {
+      this.alertsBroadcastService?.emit({
+        id: `transfer-received-${result.id}`,
+        type: 'STOCK_TRANSFER',
+        severity: 'INFO',
+        title: `Traspaso ${result.transferNo} Recibido Completo`,
+        description: `Sucursal ${result.toStoreCode} recibió mercancía completa desde ${result.fromStoreCode}`,
+        storeCode: result.toStoreCode,
+        timestamp: new Date().toISOString(),
+        link: '/transfers',
+        metadata: {
+          transferNo: result.transferNo,
+          status: 'RECEIVED',
+        },
+      });
+    }
+
+    return result;
   }
 
   async cancelTransfer(id: string, dto?: CancelTransferDto) {

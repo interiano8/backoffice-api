@@ -9,10 +9,14 @@ import {
   Inject,
   Optional,
   forwardRef,
+  Sse,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AlertConfigService } from './alert-config.service';
 import { BrevoNotificationService } from './brevo-notification.service';
+import { AlertsBroadcastService } from './alerts-broadcast.service';
 import { AlertTemplateBuilder } from './alert-template.builder';
 import { UpdateAlertConfigDto } from './dto/update-alert-config.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,8 +24,15 @@ import { FiscalAuditService } from '../reconciliation/application/services/fisca
 
 export interface OperationalAlertItem {
   id: string;
-  type: 'SHIFT_DISCREPANCY' | 'FISCAL_GAP' | 'OFFLINE_STORE' | 'STOCK_TRANSFER' | 'LOW_STOCK';
-  severity: 'CRITICAL' | 'WARNING';
+  type:
+    | 'SHIFT_DISCREPANCY'
+    | 'FISCAL_GAP'
+    | 'OFFLINE_STORE'
+    | 'STOCK_TRANSFER'
+    | 'LOW_STOCK'
+    | 'TRANSFER_DISCREPANCY'
+    | 'STATION_STATUS';
+  severity: 'CRITICAL' | 'WARNING' | 'INFO';
   title: string;
   description: string;
   storeCode: string;
@@ -29,7 +40,6 @@ export interface OperationalAlertItem {
   link: string;
   metadata?: Record<string, any>;
 }
-
 
 export interface RecentAlertsResponse {
   total: number;
@@ -44,11 +54,19 @@ export class AlertsController {
   constructor(
     private readonly alertConfigService: AlertConfigService,
     private readonly brevoService: BrevoNotificationService,
+    private readonly alertsBroadcastService: AlertsBroadcastService,
     private readonly prisma: PrismaService,
     @Optional()
     @Inject(forwardRef(() => FiscalAuditService))
     private readonly fiscalAuditService?: FiscalAuditService,
   ) {}
+
+  @Sse('stream')
+  streamAlerts(): Observable<{ data: OperationalAlertItem }> {
+    return this.alertsBroadcastService.getAlerts$().pipe(
+      map((alert) => ({ data: alert })),
+    );
+  }
 
   @Get('config')
   async getConfig() {
@@ -196,21 +214,26 @@ export class AlertsController {
     try {
       const pendingTransfers = await this.prisma.boStockTransfer.findMany({
         where: {
-          status: { in: ['REQUESTED', 'IN_TRANSIT'] },
+          status: { in: ['REQUESTED', 'IN_TRANSIT', 'RECEIVED_WITH_DISCREPANCY'] },
         },
         orderBy: { createdAt: 'desc' },
-        take: 10,
+        take: 15,
       });
 
       for (const trf of pendingTransfers) {
+        const isDiscrepancy = trf.status === 'RECEIVED_WITH_DISCREPANCY';
         alerts.push({
-          id: `transfer-${trf.id}`,
-          type: 'STOCK_TRANSFER',
-          severity: trf.status === 'REQUESTED' ? 'CRITICAL' : 'WARNING',
-          title: `Traspaso ${trf.transferNo} (${trf.status === 'REQUESTED' ? 'Pendiente Despacho' : 'En Tránsito'})`,
-          description: `De tienda ${trf.fromStoreCode} hacia ${trf.toStoreCode} por ${trf.requestedBy}`,
+          id: isDiscrepancy ? `discrepancy-${trf.id}` : `transfer-${trf.id}`,
+          type: isDiscrepancy ? 'TRANSFER_DISCREPANCY' : 'STOCK_TRANSFER',
+          severity: isDiscrepancy || trf.status === 'REQUESTED' ? 'CRITICAL' : 'WARNING',
+          title: isDiscrepancy
+            ? `Traspaso ${trf.transferNo} Recibido con Discrepancia`
+            : `Traspaso ${trf.transferNo} (${trf.status === 'REQUESTED' ? 'Pendiente Despacho' : 'En Tránsito'})`,
+          description: isDiscrepancy
+            ? `Tienda ${trf.toStoreCode} reportó diferencias en recepción desde ${trf.fromStoreCode}`
+            : `De tienda ${trf.fromStoreCode} hacia ${trf.toStoreCode} por ${trf.requestedBy}`,
           storeCode: trf.toStoreCode,
-          timestamp: trf.updatedAt.toISOString(),
+          timestamp: (trf.receivedAt || trf.updatedAt).toISOString(),
           link: '/transfers',
           metadata: {
             transferNo: trf.transferNo,
