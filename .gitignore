@@ -26,6 +26,7 @@ stryker-report/
 !.env.enc
 *.key
 *.pem
+*.pub
 
 # Logs
 logs/

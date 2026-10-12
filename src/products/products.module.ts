@@ -8,6 +8,8 @@ import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
 import { ProductPricesController } from './product-prices.controller';
 import { ProductPricesService } from './product-prices.service';
+import { UnitsOfMeasureController } from './units-of-measure.controller';
+import { UnitsOfMeasureService } from './units-of-measure.service';
 
 @Module({
   imports: [PrismaModule],
@@ -16,18 +18,22 @@ import { ProductPricesService } from './product-prices.service';
     SuppliersController,
     ProductsController,
     ProductPricesController,
+    UnitsOfMeasureController,
   ],
   providers: [
     DepartmentsService,
     SuppliersService,
     ProductsService,
     ProductPricesService,
+    UnitsOfMeasureService,
   ],
   exports: [
     DepartmentsService,
     SuppliersService,
     ProductsService,
     ProductPricesService,
+    UnitsOfMeasureService,
   ],
 })
 export class ProductsCatalogModule {}
+
