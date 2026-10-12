@@ -6,9 +6,9 @@ import {
 } from 'class-validator';
 
 export class CreateDepartmentDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -31,9 +31,9 @@ export class UpdateDepartmentDto {
 }
 
 export class CreateCategoryDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()

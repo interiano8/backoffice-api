@@ -80,14 +80,6 @@ export class ProductsService {
   }
 
   async createProduct(dto: CreateProductDto) {
-    const code = dto.code.trim().toUpperCase();
-    const existing = await this.prisma.boProduct.findUnique({
-      where: { code },
-    });
-    if (existing) {
-      throw new BadRequestException(`Ya existe un producto con el código SKU ${code}`);
-    }
-
     // Validar códigos de barra únicos
     if (dto.barcodes && dto.barcodes.length > 0) {
       const existingBarcode = await this.prisma.boProductBarcode.findFirst({
@@ -103,6 +95,34 @@ export class ProductsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      let code = dto.code?.trim().toUpperCase();
+      if (code) {
+        const existing = await tx.boProduct.findUnique({
+          where: { code },
+        });
+        if (existing) {
+          throw new BadRequestException(`Ya existe un producto con el código SKU ${code}`);
+        }
+      } else {
+        // Generar correlativo PRD-XXXXX de 5 dígitos para evitar conflictos
+        const existingPrds = await tx.boProduct.findMany({
+          where: { code: { startsWith: 'PRD-' } },
+          select: { code: true },
+        });
+        const numbers = existingPrds
+          .map((p) => {
+            const match = p.code.match(/^PRD-(\d+)$/i);
+            return match ? parseInt(match[1], 10) : 0;
+          })
+          .filter((n) => n > 0);
+        let nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+        code = `PRD-${String(nextNum).padStart(5, '0')}`;
+        while (await tx.boProduct.findUnique({ where: { code } })) {
+          nextNum++;
+          code = `PRD-${String(nextNum).padStart(5, '0')}`;
+        }
+      }
+
       const product = await tx.boProduct.create({
         data: {
           code,

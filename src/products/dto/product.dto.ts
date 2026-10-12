@@ -23,9 +23,9 @@ export class ProductSupplierInputDto {
 }
 
 export class CreateProductDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  code: string; // SKU
+  code?: string; // SKU (si no se proporciona, se autogenera PRD-XXXXX de 5 dígitos)
 
   @IsString()
   @IsNotEmpty()

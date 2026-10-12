@@ -7,9 +7,9 @@ import {
 } from 'class-validator';
 
 export class CreateSupplierDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()

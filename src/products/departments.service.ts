@@ -29,12 +29,31 @@ export class DepartmentsService {
   }
 
   async createDepartment(dto: CreateDepartmentDto) {
-    const code = dto.code.trim().toUpperCase();
-    const existing = await this.prisma.boDepartment.findUnique({
-      where: { code },
-    });
-    if (existing) {
-      throw new BadRequestException(`Ya existe un departamento con el código ${code}`);
+    let code = dto.code?.trim().toUpperCase();
+    if (code) {
+      const existing = await this.prisma.boDepartment.findUnique({
+        where: { code },
+      });
+      if (existing) {
+        throw new BadRequestException(`Ya existe un departamento con el código ${code}`);
+      }
+    } else {
+      const existingDeps = await this.prisma.boDepartment.findMany({
+        where: { code: { startsWith: 'DEP-' } },
+        select: { code: true },
+      });
+      const numbers = existingDeps
+        .map((d) => {
+          const match = d.code.match(/^DEP-(\d+)$/i);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => n > 0);
+      let nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      code = `DEP-${String(nextNum).padStart(5, '0')}`;
+      while (await this.prisma.boDepartment.findUnique({ where: { code } })) {
+        nextNum++;
+        code = `DEP-${String(nextNum).padStart(5, '0')}`;
+      }
     }
 
     return this.prisma.boDepartment.create({
@@ -89,12 +108,31 @@ export class DepartmentsService {
   }
 
   async createCategory(dto: CreateCategoryDto) {
-    const code = dto.code.trim().toUpperCase();
-    const existing = await this.prisma.boCategory.findUnique({
-      where: { code },
-    });
-    if (existing) {
-      throw new BadRequestException(`Ya existe una categoría con el código ${code}`);
+    let code = dto.code?.trim().toUpperCase();
+    if (code) {
+      const existing = await this.prisma.boCategory.findUnique({
+        where: { code },
+      });
+      if (existing) {
+        throw new BadRequestException(`Ya existe una categoría con el código ${code}`);
+      }
+    } else {
+      const existingCats = await this.prisma.boCategory.findMany({
+        where: { code: { startsWith: 'CAT-' } },
+        select: { code: true },
+      });
+      const numbers = existingCats
+        .map((c) => {
+          const match = c.code.match(/^CAT-(\d+)$/i);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => n > 0);
+      let nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      code = `CAT-${String(nextNum).padStart(5, '0')}`;
+      while (await this.prisma.boCategory.findUnique({ where: { code } })) {
+        nextNum++;
+        code = `CAT-${String(nextNum).padStart(5, '0')}`;
+      }
     }
 
     if (dto.departmentId) {

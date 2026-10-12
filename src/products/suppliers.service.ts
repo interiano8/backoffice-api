@@ -38,12 +38,31 @@ export class SuppliersService {
   }
 
   async createSupplier(dto: CreateSupplierDto) {
-    const code = dto.code.trim().toUpperCase();
-    const existing = await this.prisma.boSupplier.findUnique({
-      where: { code },
-    });
-    if (existing) {
-      throw new BadRequestException(`Ya existe un proveedor con el código ${code}`);
+    let code = dto.code?.trim().toUpperCase();
+    if (code) {
+      const existing = await this.prisma.boSupplier.findUnique({
+        where: { code },
+      });
+      if (existing) {
+        throw new BadRequestException(`Ya existe un proveedor con el código ${code}`);
+      }
+    } else {
+      const existingSups = await this.prisma.boSupplier.findMany({
+        where: { code: { startsWith: 'PRV-' } },
+        select: { code: true },
+      });
+      const numbers = existingSups
+        .map((s) => {
+          const match = s.code.match(/^PRV-(\d+)$/i);
+          return match ? parseInt(match[1], 10) : 0;
+        })
+        .filter((n) => n > 0);
+      let nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+      code = `PRV-${String(nextNum).padStart(5, '0')}`;
+      while (await this.prisma.boSupplier.findUnique({ where: { code } })) {
+        nextNum++;
+        code = `PRV-${String(nextNum).padStart(5, '0')}`;
+      }
     }
 
     return this.prisma.boSupplier.create({
