@@ -28,6 +28,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { ProductsCatalogModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     TransfersModule,
     PromotionsModule,
     TelemetryModule,
+    ProductsCatalogModule,
   ],
 
   controllers: [AppController],

@@ -1,7 +1,14 @@
 import { Injectable, Logger, BadRequestException, NotFoundException, Optional, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { SyncUpDto, SyncSaleDto, SyncShiftDto } from './dto/sync-up.dto';
-import type { SyncMastersResponseDto, SyncMasterUserDto, SyncMasterCustomerDto } from './dto/sync-masters.dto';
+import type {
+  SyncMastersResponseDto,
+  SyncMasterUserDto,
+  SyncMasterCustomerDto,
+  SyncMasterProductDto,
+  SyncMasterBarcodeDto,
+  SyncMasterProductPriceDto,
+} from './dto/sync-masters.dto';
 import type { IConnectionFactory } from '../common/connections/connection-factory.interface';
 import { AlertConfigService } from '../alerts/alert-config.service';
 import { BrevoNotificationService } from '../alerts/brevo-notification.service';
@@ -696,19 +703,116 @@ export class SyncService {
       active: er.active,
     }));
 
+    // Consultar categorías activas
+    const dbCategories = await this.prisma.boCategory.findMany({
+      where: { active: true },
+      orderBy: { code: 'asc' },
+    });
+    const categories = dbCategories.map((c) => ({
+      code: c.code,
+      description: c.name,
+    }));
+
+    // Consultar productos activos con sus códigos de barra y categorías
+    const dbProducts = await this.prisma.boProduct.findMany({
+      where: { active: true },
+      include: {
+        category: true,
+        department: true,
+        barcodes: { where: { active: true } },
+        prices: {
+          where: {
+            AND: [
+              { active: true },
+              { OR: [{ storeCode }, { storeCode: null }] },
+              { startDate: { lte: now } },
+              {
+                OR: [
+                  { endDate: null },
+                  { endDate: { gte: now } },
+                ],
+              },
+            ],
+          },
+          orderBy: [
+            { storeCode: 'desc' }, // Específico de tienda primero (not null vs null)
+            { startDate: 'desc' },
+          ],
+        },
+      },
+      orderBy: { code: 'asc' },
+    });
+
+    const products: SyncMasterProductDto[] = dbProducts.map((p) => {
+      // Prioridad: precio específico de la tienda, si no, precio global
+      const storePrice = p.prices.find((pr) => pr.storeCode === storeCode);
+      const globalPrice = p.prices.find((pr) => pr.storeCode === null);
+      const activePrice = storePrice || globalPrice;
+      const primaryBarcode = p.barcodes[0]?.barcode || null;
+
+      return {
+        code: p.code,
+        description: p.description,
+        price: activePrice ? Number(activePrice.unitPrice) : 0,
+        taxPct: Number(p.taxGroup) || 15,
+        unitOfMeasure: p.unitOfMeasure || 'UND',
+        barcode: primaryBarcode,
+        barcodes: p.barcodes.map((b) => b.barcode),
+        category: p.category?.name || null,
+        categoryCode: p.category?.code || null,
+        departmentCode: p.department?.code || null,
+        active: p.active,
+        imageUrl: p.imageUrl || null,
+      };
+    });
+
+    const barcodes: SyncMasterBarcodeDto[] = [];
+    for (const p of dbProducts) {
+      for (const b of p.barcodes) {
+        barcodes.push({
+          productCode: p.code,
+          barcode: b.barcode,
+        });
+      }
+    }
+
+    // Todos los precios vigentes o programados para la tienda (específicos o globales)
+    const dbPrices = await this.prisma.boProductPrice.findMany({
+      where: {
+        active: true,
+        OR: [{ storeCode }, { storeCode: null }],
+      },
+      include: { product: true },
+      orderBy: { startDate: 'desc' },
+    });
+
+    const productPrices: SyncMasterProductPriceDto[] = dbPrices.map((pr) => ({
+      productCode: pr.product.code,
+      storeCode: pr.storeCode,
+      unitPrice: Number(pr.unitPrice),
+      startDate: pr.startDate.toISOString(),
+      endDate: pr.endDate ? pr.endDate.toISOString() : null,
+      currencyCode: pr.currencyCode,
+      active: pr.active,
+    }));
+
     return {
       masterVersion: currentVersion,
       generatedAt: now.toISOString(),
       hasUpdates: true,
       customers,
       fuelPrices,
-      products: [],
+      products,
+      categories,
+      barcodes,
+      productPrices,
       discountRules: [],
       users,
       paymentMethods,
       exchangeRates,
     };
   }
+
 
   /**
    * Lee el catálogo de clientes de la casa matriz (000) vía su pool TPV y lo

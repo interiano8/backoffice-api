@@ -716,5 +716,124 @@ model BoPromotionItem {
   @@map("bo_promotion_items")
 }
 
+// ===== Catálogo de Productos Retail, Departamentos, Categorías, Proveedores y Precios =====
+
+model BoDepartment {
+  id         String       @id @default(uuid())
+  code       String       @unique
+  name       String
+  active     Boolean      @default(true)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  categories BoCategory[]
+  products   BoProduct[]
+
+  @@map("bo_departments")
+}
+
+model BoCategory {
+  id           String        @id @default(uuid())
+  code         String        @unique
+  name         String
+  departmentId String?       @map("department_id")
+  department   BoDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products     BoProduct[]
+
+  @@index([departmentId])
+  @@map("bo_categories")
+}
+
+model BoSupplier {
+  id        String              @id @default(uuid())
+  code      String              @unique
+  name      String
+  taxId     String?             @map("tax_id") // RTN / RUC
+  phone     String?
+  email     String?
+  address   String?
+  active    Boolean             @default(true)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  products  BoProductSupplier[]
+
+  @@map("bo_suppliers")
+}
+
+model BoProduct {
+  id            String              @id @default(uuid())
+  code          String              @unique // SKU
+  description   String
+  departmentId  String?             @map("department_id")
+  department    BoDepartment?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  categoryId    String?             @map("category_id")
+  category      BoCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unitOfMeasure String              @default("UND") @map("unit_of_measure")
+  taxGroup      String              @default("15") @map("tax_group") // 15, 18, EXENTO
+  imageUrl      String?             @map("image_url")
+  active        Boolean             @default(true)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  barcodes      BoProductBarcode[]
+  prices        BoProductPrice[]
+  suppliers     BoProductSupplier[]
+
+  @@index([departmentId])
+  @@index([categoryId])
+  @@index([active])
+  @@map("bo_products")
+}
+
+model BoProductSupplier {
+  id                  String     @id @default(uuid())
+  productId           String     @map("product_id")
+  product             BoProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplierId          String     @map("supplier_id")
+  supplier            BoSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierProductCode String?    @map("supplier_product_code")
+  isDefault           Boolean    @default(false) @map("is_default")
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([productId, supplierId])
+  @@index([productId])
+  @@index([supplierId])
+  @@map("bo_product_suppliers")
+}
+
+model BoProductBarcode {
+  id        String    @id @default(uuid())
+  productId String    @map("product_id")
+  product   BoProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  barcode   String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([productId])
+  @@map("bo_product_barcodes")
+}
+
+model BoProductPrice {
+  id           String    @id @default(uuid())
+  productId    String    @map("product_id")
+  product      BoProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  storeCode    String?   @map("store_code") // null = aplica para todas las tiendas / global
+  unitPrice    Decimal   @map("unit_price") @db.Decimal(18, 4)
+  startDate    DateTime  @map("start_date") @db.Timestamptz(6)
+  endDate      DateTime? @map("end_date") @db.Timestamptz(6)
+  currencyCode String    @default("HNL") @map("currency_code")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([productId])
+  @@index([storeCode])
+  @@index([startDate, endDate])
+  @@index([active])
+  @@map("bo_product_prices")
+}
+
+
 
 

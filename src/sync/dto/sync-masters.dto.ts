@@ -18,6 +18,26 @@ export interface SyncMasterFuelPriceDto {
   effectiveDate: string;
 }
 
+export interface SyncMasterCategoryDto {
+  code: string;
+  description: string;
+}
+
+export interface SyncMasterBarcodeDto {
+  productCode: string;
+  barcode: string;
+}
+
+export interface SyncMasterProductPriceDto {
+  productCode: string;
+  storeCode?: string | null;
+  unitPrice: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  currencyCode?: string;
+  active: boolean;
+}
+
 export interface SyncMasterProductDto {
   code: string;
   description: string;
@@ -25,8 +45,12 @@ export interface SyncMasterProductDto {
   taxPct: number;
   unitOfMeasure: string;
   barcode?: string | null;
+  barcodes?: string[];
   category?: string | null;
+  categoryCode?: string | null;
+  departmentCode?: string | null;
   active: boolean;
+  imageUrl?: string | null;
 }
 
 export interface SyncMasterDiscountRuleDto {
@@ -89,6 +113,9 @@ export interface SyncMastersResponseDto {
   customers: SyncMasterCustomerDto[];
   fuelPrices: SyncMasterFuelPriceDto[];
   products: SyncMasterProductDto[];
+  categories?: SyncMasterCategoryDto[];
+  barcodes?: SyncMasterBarcodeDto[];
+  productPrices?: SyncMasterProductPriceDto[];
   discountRules?: SyncMasterDiscountRuleDto[];
   users: SyncMasterUserDto[];
   paymentMethods?: SyncMasterPaymentMethodDto[];
